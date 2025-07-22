@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.sqlite3
+
+# Virtual environment
+.venv/
+env/
+venv/
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment variables
+.env
+
+# Logs
+*.log
+
+# Media / static if generated
+/media/
+/staticfiles/
+
+# Django migrations
+*/migrations/__pycache__/
+*/migrations/*.pyc
+
+# Coverage reports
+htmlcov/
+.coverage
+
+# MacOS
+.DS_Store
