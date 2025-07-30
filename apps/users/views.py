@@ -7,6 +7,7 @@ from rest_framework import status
 from .utils import is_valid_email,is_valid_phone,generate_otp,validate_email_or_phone
 from utils.send_email import send_otp_email,send_login_otp_email
 from datetime import datetime, timedelta
+from django.utils import timezone
 
 # Create your views here.
 
@@ -155,7 +156,7 @@ def verify_otp(request):
             "message": "User not found!"
         }, status=404)
     
-    if user.otp_generated_time and datetime.now() > user.otp_generated_time + timedelta(minutes=10):
+    if user.otp_generated_time and timezone.now() > user.otp_generated_time + timedelta(minutes=10):
         return Response({
             "success": "Fail",
             "message": "OTP has expired. Please request a new one."
