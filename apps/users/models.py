@@ -44,6 +44,8 @@ class User(MyBaseModel, AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(auto_now_add=True)
     profile_picture = models.CharField(max_length=150, null=True, blank=True)
+    otp = models.CharField(null=True, blank=True, max_length=7)
+    otp_generated_time = models.DateTimeField(auto_now_add=True)
     # wallet = models.OneToOneField('wallets.Wallet', null=True, blank=True, on_delete=models.SET_NULL, related_name='user_wallet')
 
     objects = UserManager()
