@@ -37,8 +37,8 @@ class User(MyBaseModel, AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(null=False, blank=False)
     phone = models.CharField(max_length=15, unique=True, null=True, blank=True)
     role = models.CharField(max_length=20, choices=USER_ROLES, default='user')
-    latitude = models.FloatField(null=False, blank=False)
-    longitude = models.FloatField(null=False, blank=False)
+    latitude = models.FloatField(default=0.0)
+    longitude = models.FloatField(default=0.0)
     is_verified = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
@@ -48,8 +48,8 @@ class User(MyBaseModel, AbstractBaseUser, PermissionsMixin):
 
     objects = UserManager()
 
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['phone', 'full_name']
+    USERNAME_FIELD = 'phone'
+    REQUIRED_FIELDS = ['email', 'full_name']
 
     def __str__(self):
         return f"{self.full_name} ({self.role})"
