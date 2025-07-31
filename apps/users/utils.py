@@ -30,3 +30,6 @@ def validate_email_or_phone(input_str):
             return {"type": "phone", "valid": False}
         else:
             return {"type": "unknown", "valid": False}
+        
+def generate_random_number():
+    return str(random.randint(1, 99))

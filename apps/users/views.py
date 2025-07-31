@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from .models import User
 from rest_framework import status
-from .utils import is_valid_email,is_valid_phone,generate_otp,validate_email_or_phone
+from .utils import is_valid_email,is_valid_phone,generate_otp,validate_email_or_phone,generate_random_number
 from utils.send_email import send_otp_email,send_login_otp_email
 from datetime import datetime, timedelta
 from django.utils import timezone
@@ -51,11 +51,14 @@ def register(request):
     try:
         
         otp = generate_otp()
+        idx = generate_random_number()
+        randomAvatar = f'https://avatar.iran.liara.run/public/${idx}.png'
         req_body ={
             'full_name': full_name,
             'email': email,
             'phone': phone,
-            'otp': otp
+            'otp': otp,
+            'profile_picture':randomAvatar
         }
         send_otp_email(email,otp, full_name)
         user_created = User.objects.create(**req_body)
@@ -177,4 +180,99 @@ def verify_otp(request):
         "success": "Success",
         "message": "OTP verified successfully!",
         "user_id": user.id
+    }, status=200)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def update_profile_picture(request):
+    user_id = request.data.get("user_id")
+
+    if not user_id:
+        return Response({
+            "success": "Fail",
+            "message": "User Id is required!"
+        }, status=400)
+    
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response({
+            "success": "Fail",
+            "message": "User not found!"
+        }, status=404)
+    
+    idx = generate_random_number()
+    randomAvatar = f'https://avatar.iran.liara.run/public/${idx}.png'    
+    user.profile_picture = randomAvatar
+    user.save()
+
+    return Response({
+        "success": "Success",
+        "message": "Profile Picture Updated successfully!",
+        "data": user
+    }, status=200)
+
+
+@api_view(['PUT'])
+@permission_classes([AllowAny])
+def update_profile(request):
+    user_id = request.data.get("user_id")
+    
+    if not user_id:
+        return Response({
+            "success": "Fail",
+            "message": "User ID is required."
+        }, status=400)
+
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response({
+            "success": "Fail",
+            "message": "User not found."
+        }, status=404)
+
+    # Optional fields to update
+    full_name = request.data.get("full_name")
+    phone = request.data.get("phone")
+    latitude = request.data.get("latitude")
+    longitude = request.data.get("longitude")
+
+    # Update only if provided
+    if full_name:
+        user.full_name = full_name
+    
+    if phone:
+        if User.objects.filter(phone=phone).exclude(id=user.id).exists():
+            return Response({
+                "success": "Fail",
+                "message": "Phone number already in use."
+            }, status=400)
+        user.phone = phone
+
+    if latitude:
+        try:
+            user.latitude = float(latitude)
+        except ValueError:
+            return Response({"message": "Invalid latitude."}, status=400)
+
+    if longitude:
+        try:
+            user.longitude = float(longitude)
+        except ValueError:
+            return Response({"message": "Invalid longitude."}, status=400)
+
+    user.save()
+
+    return Response({
+        "success": "Success",
+        "message": "Profile updated successfully.",
+        "data": {
+            "user_id": user.id,
+            "full_name": user.full_name,
+            "phone": user.phone,
+            "latitude": user.latitude,
+            "longitude": user.longitude,
+        }
     }, status=200)
