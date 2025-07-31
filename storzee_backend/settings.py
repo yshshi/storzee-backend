@@ -35,7 +35,8 @@ INSTALLED_APPS = [
     # Local apps (inside apps/)
     'apps.users',
     'apps.locations',
-    'apps.meta_app'
+    'apps.meta_app',
+    'apps.storage_units'
 ]
 
 MIDDLEWARE = [
