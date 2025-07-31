@@ -17,6 +17,7 @@ def register(request):
     full_name = request.data.get("full_name")
     email = request.data.get("email")
     phone = request.data.get("phone")
+    role = request.data.get("role")
 
     if not full_name:
         return Response({ 
@@ -47,18 +48,22 @@ def register(request):
             "success": "Fail",
             "message": "Invalid phone number!"
         }, status=400)
+    
+    if not role:
+        role = 'user'
 
     try:
         
         otp = generate_otp()
         idx = generate_random_number()
-        randomAvatar = f'https://avatar.iran.liara.run/public/${idx}.png'
+        randomAvatar = f'https://avatar.iran.liara.run/public/{idx}.png'
         req_body ={
             'full_name': full_name,
             'email': email,
             'phone': phone,
             'otp': otp,
-            'profile_picture':randomAvatar
+            'profile_picture':randomAvatar,
+            'role': role
         }
         send_otp_email(email,otp, full_name)
         user_created = User.objects.create(**req_body)
@@ -203,7 +208,7 @@ def update_profile_picture(request):
         }, status=404)
     
     idx = generate_random_number()
-    randomAvatar = f'https://avatar.iran.liara.run/public/${idx}.png'    
+    randomAvatar = f'https://avatar.iran.liara.run/public/{idx}.png'    
     user.profile_picture = randomAvatar
     user.save()
 
