@@ -49,7 +49,8 @@ def send_otp_email(email, otp, user_name):
 </head>
 <body>
   <div class="email-container">
-    <a href="https://ibb.co/HfNb3QJ1"><img src="https://i.ibb.co/HfNb3QJ1/Whats-App-Image-2025-07-15-at-10-37-41.jpg" alt="Whats-App-Image-2025-07-15-at-10-37-41" border="0" /></a>
+    <a href='https://postimg.cc/4nhRDnp1' target='_blank'><img src='https://i.postimg.cc/4nhRDnp1/storzee-icon.jpg' border='0' alt='storzee-icon'/></a>
+    # <a href="https://ibb.co/HfNb3QJ1"><img src="https://i.ibb.co/HfNb3QJ1/Whats-App-Image-2025-07-15-at-10-37-41.jpg" alt="Whats-App-Image-2025-07-15-at-10-37-41" border="0" /></a>
     <!-- <img src="https://ibb.co/HfNb3QJ1" alt="Storezee Shathi" class="logo"> -->
     <h2>Welcome to <strong>Storzee</strong> 👋</h2>
     <p>Use the OTP below to verify your email and get started:</p>
@@ -117,7 +118,7 @@ def send_login_otp_email(email, otp, user_name):
 </head>
 <body>
   <div class="email-container">
-    <a href="https://ibb.co/HfNb3QJ1"><img src="https://i.ibb.co/HfNb3QJ1/Whats-App-Image-2025-07-15-at-10-37-41.jpg" alt="Whats-App-Image-2025-07-15-at-10-37-41" border="0" /></a>
+    <a href='https://postimg.cc/4nhRDnp1' target='_blank'><img src='https://i.postimg.cc/4nhRDnp1/storzee-icon.jpg' border='0' alt='storzee-icon'/></a>
     <!-- <img src="https://ibb.co/HfNb3QJ1" alt="Storezee Shathi" class="logo"> -->
     <h2>Welcome back to <strong>Storzee</strong> {{user}} 👋</h2>
     <p>Use the OTP below to login into your storzee account:</p>
