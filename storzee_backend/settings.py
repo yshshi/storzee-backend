@@ -36,7 +36,8 @@ INSTALLED_APPS = [
     'apps.users',
     'apps.locations',
     'apps.meta_app',
-    'apps.storage_units'
+    'apps.storage_units',
+    'apps.storage_bookings'
 ]
 
 MIDDLEWARE = [

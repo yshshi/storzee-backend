@@ -5,6 +5,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from .models import User
 from rest_framework import status
 from .models import StorageUnit , Feedback
+from .utils import haversine
 
 # Create your views here.
 @api_view(['POST'])
@@ -132,3 +133,74 @@ def create_feedback(request):
             "success": False,
             "message": f"Error submitting feedback: {str(e)}"
         }, status=500)
+ 
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_nearby_storage_units(request):
+    user_id = request.data.get('user_id')
+    if not user_id:
+        return Response({
+            "success": False,
+            "message": "User Id is required!"
+        }, status=400)
+
+    try:
+        user_instance = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response({
+            "success": False,
+            "message": "User not found!"
+        }, status=404)
+
+    if user_instance.latitude == 0.0 and user_instance.longitude == 0.0:
+        return Response({
+            "success": False,
+            "message": "User doesn't have valid coordinates."
+        }, status=400)
+
+    units = StorageUnit.objects.filter(available=True, is_active=True)
+    result = []
+
+    for unit in units:
+        distance_km = haversine(user_instance.latitude, user_instance.longitude, unit.latitude, unit.longitude)
+
+        # Fetch all image URLs
+        images = [img.image_url for img in unit.images.all()]
+
+        # Fetch feedback details
+        feedbacks = []
+        for feedback in unit.feedbacks.select_related('user').all():
+            feedbacks.append({
+                "user": feedback.user.full_name,
+                "rating": feedback.rating,
+                "comment": feedback.comment,
+                "created_at": feedback.created_at.strftime('%Y-%m-%d %H:%M:%S')
+            })
+
+        result.append({
+            "id": str(unit.id),
+            "title": unit.title,
+            "owner": unit.owner.full_name,
+            "description": unit.description,
+            "address": unit.address,
+            "city": unit.city,
+            "state": unit.state,
+            "pincode": unit.pincode,
+            "latitude": unit.latitude,
+            "longitude": unit.longitude,
+            "price_per_hour": float(unit.price_per_hour or 0),
+            "price_per_day": float(unit.price_per_day or 0),
+            "rating": unit.rating,
+            "benefits": unit.benefits,
+            "distance_km": round(distance_km, 2),
+            "images": images,
+            "feedbacks": feedbacks
+        })
+
+    # Sort by distance
+    result.sort(key=lambda x: x['distance_km'])
+
+    return Response({
+        "success": True,
+        "data": result
+    }, status=200)
