@@ -8,6 +8,10 @@ class StorageBooking(MyBaseModel):
     STATUS_CHOICES = (
         ('pending', 'Pending'),
         ('active', 'Active'),
+        ('confirmed', 'Confirmed'),
+        ('pickup', 'Pickup'),
+        ('out_for_delivery', 'Out For Delivery'),
+        ('luggage_Stored', 'Luggage Stored'),
         ('completed', 'Completed'),
         ('cancelled', 'Cancelled'),
     )
@@ -21,11 +25,14 @@ class StorageBooking(MyBaseModel):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     storage_image_url = models.URLField(blank=True, null=True)
     storage_weight = models.CharField(max_length=100, blank=True, null=True)
-    assigned_saathi = models.ForeignKey(User, on_delete=models.CASCADE, related_name='saathi')
+    assigned_saathi = models.ForeignKey(User, on_delete=models.CASCADE, related_name='saathi', null=True, blank=True)
+    luggage_rakshak = models.ForeignKey(User, on_delete=models.CASCADE, related_name='rakshak',null=True,blank=True)
     is_active = models.BooleanField(default=False)
+    amount = models.CharField(max_length=10, blank=True, null=True)
     storage_latitude = models.FloatField(default=0.0)
     storage_longitude = models.FloatField(default=0.0)
     storage_booked_location = models.CharField(max_length=100, blank=True, null=True)
+    storage_location_updated_at = models.DateTimeField(blank=True, null=True)
     user_remark = models.CharField(max_length=200, blank=True, null=True)
 
     def __str__(self):
