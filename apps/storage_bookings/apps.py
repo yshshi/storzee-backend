@@ -3,4 +3,4 @@ from django.apps import AppConfig
 
 class StorageBookingsConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'storage_bookings'
+    name = 'apps.storage_bookings'

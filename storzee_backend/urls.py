@@ -21,6 +21,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/user/', include('apps.users.urls')),
     path('api/stroage/', include('apps.storage_units.urls')),
-    path('api/booking/', include('apps.storage_bookings.urls'))
+    # path('api/booking/', include('apps.storage_bookings.urls'))
 ]
 
