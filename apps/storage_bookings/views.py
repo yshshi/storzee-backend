@@ -7,10 +7,13 @@ from django.utils import timezone
 from apps.users.models import User
 from apps.storage_units.models import StorageUnit
 from .models import StorageBooking
-from .utils import generate_booking_id
+from .utils import generate_booking_id,calculate_distance_km
 import datetime
 from django.utils.timezone import localtime
 from rest_framework import status
+from django.core.files.base import ContentFile
+import base64
+from apps.storage_units.models import StorageUnit
 
 # Create your views here.
 
@@ -24,9 +27,9 @@ def create_booking(request):
         storage_unit_id = data.get("storage_unit_id")
         booking_type = data.get("booking_type")  # 'hourly' or 'daily'
         start_time = data.get("booking_created_time")
-        storage_weight = data.get("storage_weight")
+        # storage_weight = data.get("storage_weight")
         storage_booked_location = data.get("storage_booked_location")
-        storage_image_url = data.get("storage_image_url")
+        # storage_image_url = data.get("storage_image_url")
         user_remark = data.get("user_remark", "")
         amount = data.get("amount")
 
@@ -37,11 +40,11 @@ def create_booking(request):
                 "message": "All required fields must be provided."
             }, status=400)
         
-        if not storage_image_url and not storage_weight:
-            return Response({
-                "success": False,
-                "message": "Image and Luggage Weight is mandatory to book a storage."
-            }, status=400)
+        # if not storage_image_url and not storage_weight:
+        #     return Response({
+        #         "success": False,
+        #         "message": "Image and Luggage Weight is mandatory to book a storage."
+        #     }, status=400)
 
         user = User.objects.get(id=user_id)
         storage_unit = StorageUnit.objects.get(id=storage_unit_id)
@@ -55,8 +58,8 @@ def create_booking(request):
             booking_type=booking_type,
             booking_created_time=start_time,
             status='active',
-            storage_image_url=storage_image_url,
-            storage_weight=storage_weight,
+            # storage_image_url=storage_image_url,
+            # storage_weight=storage_weight,
             is_active=True,
             storage_booked_location=storage_booked_location,
             user_remark=user_remark,
@@ -243,3 +246,159 @@ def get_luggage_deatils(request):
         })
 
     return Response(data, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def validate_pickup(request):
+    user = request.user
+
+    if user.role != 'saathi':
+        return Response({"success": False, "message": "Only saathi can access this API."}, status=403)
+
+    booking_id = request.data.get('booking_id')
+    confirmed_weight = request.data.get('confirmed_weight')
+    luggage_images = request.data.get('luggage_images')  # Should be list of base64 strings
+
+    if not booking_id or not confirmed_weight or not luggage_images:
+        return Response({"success": False, "message": "booking_id, confirmed_weight, and luggage_images are required."}, status=400)
+
+    try:
+        booking = StorageBooking.objects.get(booking_id=booking_id, assigned_saathi=user)
+    except StorageBooking.DoesNotExist:
+        return Response({"success": False, "message": "Booking not found or not assigned to you."}, status=404)
+
+    if booking.status != 'active':
+        return Response({"success": False, "message": f"Cannot pick up luggage. Current status: {booking.status}"}, status=400)
+
+    # Process and save images
+    image_urls = []
+    for index, image_base64 in enumerate(luggage_images):
+        try:
+            format, imgstr = image_base64.split(';base64,') 
+            ext = format.split('/')[-1]
+            file_name = f"luggage_{booking.booking_id}_{index}_{uuid.uuid4()}.{ext}"
+
+            # Save file to Django FileField or custom storage logic
+            decoded_file = ContentFile(base64.b64decode(imgstr), name=file_name)
+            # If you have Image model or S3 uploader use that, else temporarily save paths
+            # For now, we fake the URL
+            image_urls.append(f"https://cdn.storzee.in/uploads/{file_name}")
+        except Exception as e:
+            return Response({"success": False, "message": f"Error processing image: {str(e)}"}, status=400)
+
+    # Update booking
+    booking.status = 'pickup'
+    booking.storage_weight = confirmed_weight
+    booking.luggage_images = image_urls  # JSONField
+    booking.pickup_confirmed_at = timezone.now()
+    booking.save()
+
+    return Response({
+        "success": True,
+        "message": "Pickup confirmed and luggage status updated to 'pickup'.",
+        "data": {
+            "booking_id": booking.booking_id,
+            "status": booking.status,
+            "image_urls": image_urls
+        }
+    }, status=200)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def submit_to_rakshak(request):
+    userId = request.user.get("user_id")
+    user = User.objects.filter(id=userId).first()
+
+    if user.role != 'saathi':
+        return Response({"success": False, "message": "Only saathi can access this API."}, status=403)
+
+    booking_id = request.data.get('booking_id')
+
+    if not booking_id:
+        return Response({"success": False, "message": "booking_id is required."}, status=400)
+
+    try:
+        booking = StorageBooking.objects.select_related('storage_unit').get(
+            booking_id=booking_id,
+            assigned_saathi=user
+        )
+    except StorageBooking.DoesNotExist:
+        return Response({"success": False, "message": "Booking not found or not assigned to you."}, status=404)
+
+    if booking.status != 'pickup':
+        return Response({"success": False, "message": f"Invalid booking status: {booking.status}. Expected 'pickup'."}, status=400)
+
+    # Update status to 'luggage_Stored'
+    booking.status = 'luggage_Stored'
+    booking.storage_location_updated_at = timezone.now()
+    booking.delivered_to_rakshak_at = timezone.now()
+
+    # Update current coordinates to rakshak storage unit
+    booking.storage_latitude = booking.storage_unit.latitude
+    booking.storage_longitude = booking.storage_unit.longitude
+    booking.save()
+
+    return Response({
+        "success": True,
+        "message": "Luggage successfully submitted to Rakshak.",
+        "data": {
+            "booking_id": booking.booking_id,
+            "status": booking.status,
+            "storage_location": {
+                "lat": booking.storage_latitude,
+                "lng": booking.storage_longitude
+            }
+        }
+    })
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def request_return(request):
+    userId = request.user.get("user_id")
+    user = User.objects.filter(id=userId).first()
+    data = request.data
+
+    try:
+        booking = StorageBooking.objects.get(booking_id=data.get("booking_id"), user_booked=user)
+    except StorageBooking.DoesNotExist:
+        return Response({"success": False, "message": "Booking not found."}, status=404)
+
+    if booking.status != 'luggage_Stored':
+        return Response({"success": False, "message": "Luggage is not stored yet."}, status=400)
+
+    delivery_lat = data.get("delivery_lat")
+    delivery_lng = data.get("delivery_lng")
+    delivery_address = data.get("delivery_address")
+    preferred_time = data.get("preferred_time")
+
+    if not all([delivery_lat, delivery_lng, delivery_address, preferred_time]):
+        return Response({"success": False, "message": "All delivery details are required."}, status=400)
+
+    # Calculate distance between storage and delivery location
+    distance_km = calculate_distance_km(float(booking.storage_unit.latitude), float(booking.storage_unit.longitude), float(delivery_lat), float(delivery_lng))
+
+    # price details 
+    storage_unit_instance = StorageUnit.objects.filter(id=booking.storage_unit).first()
+    # Estimate amount: ₹50 base + ₹10/km
+    estimated_amount = int(storage_unit_instance.price_per_hour) + (int(storage_unit_instance.price_per_km) * distance_km)
+    estimated_amount = round(estimated_amount)
+
+    # Update booking
+    booking.return_requested_at = timezone.now()
+    booking.return_lat = delivery_lat
+    booking.return_lng = delivery_lng
+    booking.return_address = delivery_address
+    booking.return_preferred_time = preferred_time
+    booking.return_estimated_amount = estimated_amount
+    booking.save()
+
+    return Response({
+        "success": True,
+        "message": "Return request initiated. Please complete payment to proceed.",
+        "data": {
+            "booking_id": booking.booking_id,
+            "estimated_amount": estimated_amount,
+            "distance_km": round(distance_km, 2),
+            "preferred_time": preferred_time
+        }
+    })

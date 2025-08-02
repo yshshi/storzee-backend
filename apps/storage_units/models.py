@@ -22,7 +22,7 @@ class StorageUnit(MyBaseModel):
 
     capacity = models.IntegerField(help_text="Max bags", blank=True, null=True)
     price_per_hour = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True)
-    price_per_day = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    price_per_km = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
 
     available = models.BooleanField(default=True)
     is_active = models.BooleanField(default=True)

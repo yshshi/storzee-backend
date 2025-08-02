@@ -12,4 +12,4 @@ urlpatterns = [
     re_path(r'^get_luggage_deatils', get_luggage_deatils, name='get_luggage_deatils'),
 
     *router.urls
-]
+] 

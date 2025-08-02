@@ -24,6 +24,7 @@ class StorageBooking(MyBaseModel):
     booking_end_time = models.DateTimeField(blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     storage_image_url = models.URLField(blank=True, null=True)
+    luggage_images = models.JSONField(default=list, blank=True, null=True)
     storage_weight = models.CharField(max_length=100, blank=True, null=True)
     assigned_saathi = models.ForeignKey(User, on_delete=models.CASCADE, related_name='saathi', null=True, blank=True)
     luggage_rakshak = models.ForeignKey(User, on_delete=models.CASCADE, related_name='rakshak',null=True,blank=True)
@@ -32,8 +33,16 @@ class StorageBooking(MyBaseModel):
     storage_latitude = models.FloatField(default=0.0)
     storage_longitude = models.FloatField(default=0.0)
     storage_booked_location = models.CharField(max_length=100, blank=True, null=True)
+    pickup_confirmed_at = models.DateTimeField(blank=True, null=True)
     storage_location_updated_at = models.DateTimeField(blank=True, null=True)
     user_remark = models.CharField(max_length=200, blank=True, null=True)
+    delivered_to_rakshak_at = models.DateTimeField(null=True, blank=True)
+    return_requested_at = models.DateTimeField(null=True, blank=True)
+    return_lat = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    return_lng = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    return_address = models.TextField(null=True, blank=True)
+    return_preferred_time = models.DateTimeField(null=True, blank=True)
+    return_estimated_amount = models.PositiveIntegerField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.user.full_name} → {self.storage_unit.title} [{self.status}]"
