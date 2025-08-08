@@ -6,14 +6,15 @@ from rest_framework.response import Response
 from django.utils import timezone
 from apps.users.models import User
 from apps.storage_units.models import StorageUnit
-from .models import StorageBooking
-from .utils import generate_booking_id,calculate_distance_km
+from apps.storage_bookings.models import StorageBooking
+from apps.storage_bookings.utils import generate_booking_id,calculate_distance_km
 import datetime
 from django.utils.timezone import localtime
 from rest_framework import status
 from django.core.files.base import ContentFile
 import base64
 from apps.storage_units.models import StorageUnit
+from apps.saathi.utils import trigger_notification_to_saathi, trigger_notification_to_saathi_return
 
 # Create your views here.
 
@@ -65,6 +66,7 @@ def create_booking(request):
             user_remark=user_remark,
             amount=amount
         )
+        trigger_notification_to_saathi(bookingid=booking.id)
 
         return Response({
             "success": True,
@@ -391,6 +393,8 @@ def request_return(request):
     booking.return_preferred_time = preferred_time
     booking.return_estimated_amount = estimated_amount
     booking.save()
+
+    trigger_notification_to_saathi_return(bookingid=booking.id)
 
     return Response({
         "success": True,

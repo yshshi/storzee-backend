@@ -2,7 +2,7 @@ from django.shortcuts import render
 from rest_framework.decorators import api_view, permission_classes 
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from .models import User
+from .models import User, UserNotification
 from rest_framework import status
 from .utils import is_valid_email,is_valid_phone,generate_otp,validate_email_or_phone,generate_random_number
 from utils.send_email import send_otp_email,send_login_otp_email
@@ -89,60 +89,86 @@ def register(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login(request):
-    email_phone = request.data.get("email_phone")
-
-    if not email_phone:
+    email = request.data.get("email")
+    if not email:
         return Response({
             "success": "Fail",
-            "message": "Email or phone is required!"
+            "message": "Email is required!"
         }, status=400)
-
-    input_type = validate_email_or_phone(email_phone)
-
-    if input_type["type"] == 'email' and not input_type["valid"]:
-        return Response({
-            "success": "Fail",
-            "message": "Invalid Email!"
-        }, status=400)
-
-    if input_type["type"] == 'phone' and not input_type["valid"]:
-        return Response({
-            "success": "Fail",
-            "message": "Invalid Phone Number!"
-        }, status=400)
-
-    if input_type["type"] == 'unknown':
-        return Response({
-            "success": "Fail",
-            "message": "Please enter a valid email or phone number!"
-        }, status=400)
-
-    # Initialize variables
-    email = email_phone if input_type["type"] == "email" else None
-    phone = email_phone if input_type["type"] == "phone" else None
-
-    user = None
-    if email:
-        user = User.objects.filter(email=email).first()
-    elif phone:
-        user = User.objects.filter(phone=phone).first()
+    
+    user = User.objects.filter(email=email).first()
 
     if not user:
         return Response({
-            "success": "Fail",
-            "message": "User not found!"
-        }, status=404)
-    else:
-        otp = generate_otp()
-        user.otp = otp
-        user.save()
-        send_login_otp_email(user.email,otp, user.full_name)
-        return Response({
-            'message': 'OTP is sent to your register email.',
-            'data':{
-                'user_id': user.id
-            }
-        }, status=status.HTTP_200_OK)
+            "success": "Pass",
+            "is_register": False,
+            "data": None
+        }, status=200)
+    
+    otp = generate_otp()
+    user.otp = otp
+    user.save()
+    send_login_otp_email(user.email,otp, user.full_name)
+    return Response({
+        'message': 'OTP is sent to your register email.',
+        'data': user,
+        "is_register": True
+    }, status=status.HTTP_200_OK)
+    
+
+
+    # if not email_phone:
+    #     return Response({
+    #         "success": "Fail",
+    #         "message": "Email or phone is required!"
+    #     }, status=400)
+
+    # input_type = validate_email_or_phone(email_phone)
+
+    # if input_type["type"] == 'email' and not input_type["valid"]:
+    #     return Response({
+    #         "success": "Fail",
+    #         "message": "Invalid Email!"
+    #     }, status=400)
+
+    # if input_type["type"] == 'phone' and not input_type["valid"]:
+    #     return Response({
+    #         "success": "Fail",
+    #         "message": "Invalid Phone Number!"
+    #     }, status=400)
+
+    # if input_type["type"] == 'unknown':
+    #     return Response({
+    #         "success": "Fail",
+    #         "message": "Please enter a valid email or phone number!"
+    #     }, status=400)
+
+    # # Initialize variables
+    # email = email_phone if input_type["type"] == "email" else None
+    # phone = email_phone if input_type["type"] == "phone" else None
+
+    # user = None
+    # if email:
+    #     user = User.objects.filter(email=email).first()
+    # elif phone:
+    #     user = User.objects.filter(phone=phone).first()
+
+    # if not user:
+    #     return Response({
+    #         "success": "Fail",
+    #         "message": "User not found!"
+    #     }, status=404)
+    # else:
+    #     otp = generate_otp()
+    #     user.otp = otp
+    #     user.save()
+    #     send_login_otp_email(user.email,otp, user.full_name)
+    #     return Response({
+    #         'message': 'OTP is sent to your register email.',
+    #         'data':{
+    #             'user_id': user.id
+    #         }
+    #     }, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -280,4 +306,46 @@ def update_profile(request):
             "latitude": user.latitude,
             "longitude": user.longitude,
         }
+    }, status=200)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def user_notification(request):
+    user_id = request.data.get("user_id")
+    
+    if not user_id:
+        return Response({
+            "success": "Fail",
+            "message": "User ID is required."
+        }, status=400)
+
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response({
+            "success": "Fail",
+            "message": "User not found."
+        }, status=404)
+    
+    notifications = UserNotification.objects.filter(user_id=user_id).order_by('-notification_created_at')
+
+    if not notifications.exists():
+        return Response({
+            "success": "Fail",
+            "message": "No notifications found."
+        }, status=404)
+
+    # Convert queryset to list of dicts
+    notifications_list = [
+        {
+            "notification_title": n.title,
+            "notification_message": n.message,
+            "notification_created_at": n.created_at
+        }
+        for n in notifications
+    ]
+
+    return Response({
+        "success": "Success",
+        "data": notifications_list
     }, status=200)

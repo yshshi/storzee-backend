@@ -38,6 +38,9 @@ INSTALLED_APPS = [
     'apps.meta_app',
     'apps.storage_units',
     'apps.storage_bookings'
+    'apps.saathi',
+    'apps.wallet',
+    'apps.payment'
 ]
 
 MIDDLEWARE = [
