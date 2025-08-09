@@ -37,7 +37,7 @@ INSTALLED_APPS = [
     'apps.locations',
     'apps.meta_app',
     'apps.storage_units',
-    'apps.storage_bookings'
+    'apps.storage_bookings',
     'apps.saathi',
     'apps.wallet',
     'apps.payment'

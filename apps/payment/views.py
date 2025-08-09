@@ -1,18 +1,18 @@
 from django.shortcuts import render
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-from storage_bookings.models import StorageBooking
+from apps.storage_bookings.models import StorageBooking
 from apps.users.models import User
 from apps.storage_units.models import StorageUnit
 from .utils import calculate_distance_km,create_razorpay_order
-from apps.wallet.models import Wallet
+from apps.wallet.models import UserWallet
 
 # Create your views here.
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def calculate_return_payment(request):
     userId = request.user.get("user_id")
     user = User.objects.filter(id=userId).first()
@@ -42,7 +42,7 @@ def calculate_return_payment(request):
         })
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def initiate_return_payment(request):
     userId = request.user.get("user_id")
     user = User.objects.filter(id=userId).first()
@@ -65,7 +65,7 @@ def initiate_return_payment(request):
     total_return_amount = amount
 
     # Validate wallet balance
-    wallet_instance =  Wallet.objects.filter(user=user).first()
+    wallet_instance =  UserWallet.objects.filter(user=user).first()
     wallet_balance = wallet_instance.balance
     used_wallet = 0
     remaining_amount = total_return_amount
