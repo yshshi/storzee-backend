@@ -17,9 +17,9 @@ def get_user_wallet(request):
             "amount": float(tx.amount),
             "type": tx.transaction_type,
             "description": tx.description,
-            "date": tx.created_at
+            "date": tx.timestamp 
         }
-        for tx in wallet.transactions.order_by("-created_at")
+        for tx in wallet.transactions.order_by("-timestamp")
     ]
 
     return Response({

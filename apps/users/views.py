@@ -8,6 +8,7 @@ from .utils import is_valid_email,is_valid_phone,generate_otp,validate_email_or_
 from utils.send_email import send_otp_email,send_login_otp_email
 from datetime import datetime, timedelta
 from django.utils import timezone
+from utils.get_city_name import get_city_name_from_coords
 
 # Create your views here.
 
@@ -238,10 +239,19 @@ def update_profile_picture(request):
     user.profile_picture = randomAvatar
     user.save()
 
+    req_body = {
+        'id': user.id,
+        'full_name': user.full_name,
+        'city_name': user.city_name,
+        'email': user.email,
+        'phone': user.phone,
+        'profile_picture': user.profile_picture
+    }
+
     return Response({
         "success": "Success",
         "message": "Profile Picture Updated successfully!",
-        "data": user
+        "data": req_body
     }, status=200)
 
 
@@ -293,6 +303,10 @@ def update_profile(request):
             user.longitude = float(longitude)
         except ValueError:
             return Response({"message": "Invalid longitude."}, status=400)
+        
+    if longitude and latitude:
+        city = get_city_name_from_coords(lat=latitude,lng=longitude)
+        user.city_name = city
 
     user.save()
 
@@ -327,7 +341,7 @@ def user_notification(request):
             "message": "User not found."
         }, status=404)
     
-    notifications = UserNotification.objects.filter(user_id=user_id).order_by('-notification_created_at')
+    notifications = UserNotification.objects.filter(user_id=user_id).order_by('-created_at')
 
     if not notifications.exists():
         return Response({
@@ -348,4 +362,36 @@ def user_notification(request):
     return Response({
         "success": "Success",
         "data": notifications_list
+    }, status=200)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def user_details(request):
+    user_id = request.data.get("user_id")
+    
+    if not user_id:
+        return Response({
+            "success": "Fail",
+            "message": "User ID is required."
+        }, status=400)
+
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response({
+            "success": "Fail",
+            "message": "User not found."
+        }, status=404)
+    
+    req_body = {
+        'id': user.id,
+        'full_name': user.full_name,
+        'city_name': user.city_name,
+        'email': user.email,
+        'phone': user.phone,
+        'profile_picture': user.profile_picture
+    }
+    return Response({
+        "success": "Success",
+        "data": req_body
     }, status=200)

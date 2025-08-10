@@ -37,7 +37,7 @@ def create_storage_unit(request):
         longitude = float(request.data.get('longitude') or 0.0)
         capacity = request.data.get('capacity')
         price_per_hour = request.data.get('price_per_hour')
-        price_per_day = request.data.get('price_per_day')
+        price_per_km = request.data.get('price_per_km')
         available = request.data.get('available', True)
         is_active = request.data.get('is_active', True)
         rating = request.data.get('rating', 0.0)
@@ -55,7 +55,7 @@ def create_storage_unit(request):
             state=state,
             pincode=pincode,
             capacity=capacity,
-            price_per_day=price_per_day,
+            price_per_km=price_per_km,
             price_per_hour=price_per_hour,
             available=available,
             is_active=is_active,
@@ -189,7 +189,7 @@ def get_nearby_storage_units(request):
             "latitude": unit.latitude,
             "longitude": unit.longitude,
             "price_per_hour": float(unit.price_per_hour or 0),
-            "price_per_day": float(unit.price_per_day or 0),
+            "price_per_km": float(unit.price_per_km or 0),
             "rating": unit.rating,
             "benefits": unit.benefits,
             "distance_km": round(distance_km, 2),

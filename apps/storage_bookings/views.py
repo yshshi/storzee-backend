@@ -33,13 +33,18 @@ def create_booking(request):
         # storage_image_url = data.get("storage_image_url")
         user_remark = data.get("user_remark", "")
         amount = data.get("amount")
+        latitude = data.get("latitude")
+        longitude = data.get("longitude")
 
         # Validation
-        if not all([user_id, storage_unit_id, start_time]):
+        if not all([user_id, storage_unit_id, start_time, latitude, longitude]):
             return Response({
                 "success": False,
                 "message": "All required fields must be provided."
             }, status=400)
+        
+        if booking_type is None:
+            booking_type = 'others'
         
         # if not storage_image_url and not storage_weight:
         #     return Response({
@@ -64,14 +69,17 @@ def create_booking(request):
             is_active=True,
             storage_booked_location=storage_booked_location,
             user_remark=user_remark,
-            amount=amount
+            amount=amount,
+            storage_latitude=latitude,
+            storage_longitude=longitude
         )
-        trigger_notification_to_saathi(bookingid=booking.id)
+        # trigger_notification_to_saathi(bookingid=booking.id)
 
         return Response({
             "success": True,
             "message": "Storage booked successfully.",
             "data": {
+                "id": booking.id,
                 "booking_id": booking.booking_id,
                 "storage_title": storage_unit.title,
                 "start_time": booking.booking_created_time,
@@ -218,26 +226,26 @@ def get_luggage_deatils(request):
                 "full_name": booking.user_booked.full_name,
                 "email": booking.user_booked.email,
                 "phone": booking.user_booked.phone,
-            },
+            } if booking.user_booked else [],
             "assigned_saathi": {
                 "id": booking.assigned_saathi.id,
                 "full_name": booking.assigned_saathi.full_name,
                 "email": booking.assigned_saathi.email,
                 "phone": booking.assigned_saathi.phone,
-            },
+            } if booking.assigned_saathi else [],
             "luggage_rakshak": {
                 "id": booking.luggage_rakshak.id,
                 "full_name": booking.luggage_rakshak.full_name,
                 "email": booking.luggage_rakshak.email,
                 "phone": booking.luggage_rakshak.phone,
-            },
+            } if booking.luggage_rakshak else [],
             "storage_unit": {
                 "id": booking.storage_unit.id,
                 "title": booking.storage_unit.title,
                 "address": booking.storage_unit.address,
                 "city": booking.storage_unit.city,
                 "price_per_hour": str(booking.storage_unit.price_per_hour),
-                "price_per_day": str(booking.storage_unit.price_per_day),
+                "price_per_km": str(booking.storage_unit.price_per_km),
                 "owner": {
                     "id": booking.storage_unit.owner.id,
                     "full_name": booking.storage_unit.owner.full_name,
@@ -252,7 +260,13 @@ def get_luggage_deatils(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def validate_pickup(request):
-    user = request.user
+    data = request.data
+    user_id = data.get("saathi_id")
+
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response({"success": False, "message": "User not found."}, status=404)
 
     if user.role != 'saathi':
         return Response({"success": False, "message": "Only saathi can access this API."}, status=403)
@@ -265,7 +279,7 @@ def validate_pickup(request):
         return Response({"success": False, "message": "booking_id, confirmed_weight, and luggage_images are required."}, status=400)
 
     try:
-        booking = StorageBooking.objects.get(booking_id=booking_id, assigned_saathi=user)
+        booking = StorageBooking.objects.get(id=booking_id)
     except StorageBooking.DoesNotExist:
         return Response({"success": False, "message": "Booking not found or not assigned to you."}, status=404)
 
@@ -281,7 +295,7 @@ def validate_pickup(request):
             file_name = f"luggage_{booking.booking_id}_{index}_{uuid.uuid4()}.{ext}"
 
             # Save file to Django FileField or custom storage logic
-            decoded_file = ContentFile(base64.b64decode(imgstr), name=file_name)
+            # decoded_file = ContentFile(base64.b64decode(imgstr), name=file_name)
             # If you have Image model or S3 uploader use that, else temporarily save paths
             # For now, we fake the URL
             image_urls.append(f"https://cdn.storzee.in/uploads/{file_name}")
@@ -293,12 +307,14 @@ def validate_pickup(request):
     booking.storage_weight = confirmed_weight
     booking.luggage_images = image_urls  # JSONField
     booking.pickup_confirmed_at = timezone.now()
+    booking.assigned_saathi = user_id
     booking.save()
 
     return Response({
         "success": True,
         "message": "Pickup confirmed and luggage status updated to 'pickup'.",
         "data": {
+            "id": booking.id,
             "booking_id": booking.booking_id,
             "status": booking.status,
             "image_urls": image_urls
