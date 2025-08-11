@@ -15,6 +15,8 @@ from django.core.files.base import ContentFile
 import base64
 from apps.storage_units.models import StorageUnit
 from apps.saathi.utils import trigger_notification_to_saathi, trigger_notification_to_saathi_return
+from utils.trigger_notiifcation import send_push_notification_to_user_for_delivery_arrived
+from apps.saathi.models import Saathi
 
 # Create your views here.
 
@@ -262,6 +264,7 @@ def get_luggage_deatils(request):
 def validate_pickup(request):
     data = request.data
     user_id = data.get("saathi_id")
+    status = data.get("status")
 
     try:
         user = User.objects.get(id=user_id)
@@ -275,8 +278,9 @@ def validate_pickup(request):
     confirmed_weight = request.data.get('confirmed_weight')
     luggage_images = request.data.get('luggage_images')  # Should be list of base64 strings
 
-    if not booking_id or not confirmed_weight or not luggage_images:
-        return Response({"success": False, "message": "booking_id, confirmed_weight, and luggage_images are required."}, status=400)
+    if status=='taking_pickup':
+        if not booking_id or not confirmed_weight or not luggage_images:
+            return Response({"success": False, "message": "booking_id, confirmed_weight, and luggage_images are required."}, status=400)
 
     try:
         booking = StorageBooking.objects.get(id=booking_id)
@@ -286,27 +290,31 @@ def validate_pickup(request):
     if booking.status != 'active':
         return Response({"success": False, "message": f"Cannot pick up luggage. Current status: {booking.status}"}, status=400)
 
-    # Process and save images
-    image_urls = []
-    for index, image_base64 in enumerate(luggage_images):
-        try:
-            format, imgstr = image_base64.split(';base64,') 
-            ext = format.split('/')[-1]
-            file_name = f"luggage_{booking.booking_id}_{index}_{uuid.uuid4()}.{ext}"
+    if status=='taking_pickup':
+        # Process and save images
+        image_urls = []
+        for index, image_base64 in enumerate(luggage_images):
+            try:
+                format, imgstr = image_base64.split(';base64,') 
+                ext = format.split('/')[-1]
+                file_name = f"luggage_{booking.booking_id}_{index}_{uuid.uuid4()}.{ext}"
 
-            # Save file to Django FileField or custom storage logic
-            # decoded_file = ContentFile(base64.b64decode(imgstr), name=file_name)
-            # If you have Image model or S3 uploader use that, else temporarily save paths
-            # For now, we fake the URL
-            image_urls.append(f"https://cdn.storzee.in/uploads/{file_name}")
-        except Exception as e:
-            return Response({"success": False, "message": f"Error processing image: {str(e)}"}, status=400)
+                # Save file to Django FileField or custom storage logic
+                # decoded_file = ContentFile(base64.b64decode(imgstr), name=file_name)
+                # If you have Image model or S3 uploader use that, else temporarily save paths
+                # For now, we fake the URL
+                image_urls.append(f"https://cdn.storzee.in/uploads/{file_name}")
+            except Exception as e:
+                return Response({"success": False, "message": f"Error processing image: {str(e)}"}, status=400)
 
-    # Update booking
-    booking.status = 'pickup'
-    booking.storage_weight = confirmed_weight
-    booking.luggage_images = image_urls  # JSONField
-    booking.pickup_confirmed_at = timezone.now()
+        # Update booking
+        booking.status = 'pickup'
+        booking.storage_weight = confirmed_weight
+        booking.luggage_images = image_urls  # JSONField
+        booking.pickup_confirmed_at = timezone.now()
+    elif status=='out_for_delivery':
+        booking.status = 'out_for_delivery'
+
     booking.assigned_saathi = user_id
     booking.save()
 
@@ -421,4 +429,38 @@ def request_return(request):
             "distance_km": round(distance_km, 2),
             "preferred_time": preferred_time
         }
+    })
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def validate_delivery(request):
+    data = request.data
+    saathi_id = data.get("saathi_id")
+    luggage_id = data.get("luggage_id")
+    status = data.get("status")
+
+    try:
+        booking = StorageBooking.objects.get(booking_id=luggage_id)
+    except StorageBooking.DoesNotExist:
+        return Response({"success": False, "message": "Booking not found."}, status=404)
+    
+    saathi_ins = Saathi.objects.filter(id=saathi_id).first()
+    
+    if booking.status=='delivered':
+        return Response({"success": False, "message": "Luggage is already delivered!."}, status=400)
+    
+    if status =='reached_destination':
+        send_push_notification_to_user_for_delivery_arrived(saathi_id=saathi_id, user_id=booking.user_booked.id , status='reached_destination')
+        booking.status = 'luggage_reached'
+    else:
+        send_push_notification_to_user_for_delivery_arrived(saathi_id=saathi_id, user_id=booking.user_booked.id)
+        booking.status == 'complete'
+        saathi_ins.is_available = True
+        saathi_ins.save()
+
+    booking.save()
+
+    return Response({
+        "success": True,
+        "message": "Delievry Validated"
     })

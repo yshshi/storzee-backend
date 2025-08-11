@@ -12,6 +12,7 @@ class StorageBooking(MyBaseModel):
         ('pickup', 'Pickup'),
         ('out_for_delivery', 'Out For Delivery'),
         ('luggage_Stored', 'Luggage Stored'),
+        ('luggage_reached','Luggage Reached'),
         ('completed', 'Completed'),
         ('cancelled', 'Cancelled'),
     )

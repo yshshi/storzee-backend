@@ -2,7 +2,7 @@ from django.shortcuts import render
 from rest_framework.decorators import api_view, permission_classes 
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from .models import User, UserNotification
+from .models import User, UserNotification, UserDeviceToken
 from rest_framework import status
 from .utils import is_valid_email,is_valid_phone,generate_otp,validate_email_or_phone,generate_random_number
 from utils.send_email import send_otp_email,send_login_otp_email
@@ -394,4 +394,63 @@ def user_details(request):
     return Response({
         "success": "Success",
         "data": req_body
+    }, status=200)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def update_device_token(request):
+    user_id = request.data.get("user_id")
+    token = request.data.get("token")
+    device = request.data.get("device", "others")
+    
+    if not user_id:
+        return Response({
+            "success": "Fail",
+            "message": "User ID is required."
+        }, status=400)
+    
+    if not token:
+        return Response({
+            "success": "Fail",
+            "message": "Device token is required."
+        }, status=400)
+    
+    if not device:
+        device = 'others'
+
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response({
+            "success": "Fail",
+            "message": "User not found."
+        }, status=404)
+    
+    req_body = {
+        'user': user,
+        'token': token,
+        'device': device
+    }
+
+    try:
+        user_token, created = UserDeviceToken.objects.update_or_create(
+            user=user,
+            device=device,
+            defaults={"token": token}
+        )
+    except Exception as e:
+        return Response({
+            "success": "Fail",
+            "message": "Something went wrong!"
+        }, status=400)
+    
+    return Response({
+        "success": "Pass",
+        "message": "Device token saved successfully.",
+        "data": {
+            "id": user_token.id,
+            "token": user_token.token,
+            "device": user_token.device,
+            "created": created
+        }
     }, status=200)

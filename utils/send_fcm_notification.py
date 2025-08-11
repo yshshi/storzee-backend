@@ -25,9 +25,9 @@ def send_fcm_v1_message(token, title, body, data=None):
     response = requests.post(url, headers=headers, json=payload)
     return response.json()
 
-notification = send_fcm_v1_message(token='eGYqgJ6EQ4uodkhLkqFdx5:APA91bHCd3X0eAnenCK-6EtLPfIFAjxixIG6-VmbJZvS3w-y1kQX_M3a9xaJ-I52lvTjws-FxKYvKwXQBcYxqvEPiPabADqduUglkZCY4TwLcvy95hQdff0',
-                                   title='Booking Confirmed',
-                                   body='Your luggage pickup is scheduled.',
-                                   data={"booking_id": "123456"})
+# notification = send_fcm_v1_message(token='eGYqgJ6EQ4uodkhLkqFdx5:APA91bHCd3X0eAnenCK-6EtLPfIFAjxixIG6-VmbJZvS3w-y1kQX_M3a9xaJ-I52lvTjws-FxKYvKwXQBcYxqvEPiPabADqduUglkZCY4TwLcvy95hQdff0',
+#                                    title='Booking Confirmed',
+#                                    body='Your luggage pickup is scheduled.',
+#                                    data={"booking_id": "123456"})
 
-print(notification)
+# print(notification)
