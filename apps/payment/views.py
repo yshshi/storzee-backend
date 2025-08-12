@@ -26,15 +26,15 @@ def calculate_return_payment(request):
     if not booking_id or not userId:
         return Response({'error': 'Booking ID and user id is required.'}, status=400)
     
-    try:
-        booking = StorageBooking.objects.get(booking_id=request.data.get("booking_id"), user_booked=user)
-    except StorageBooking.DoesNotExist:
+    
+    booking = StorageBooking.objects.get(id=request.data.get("booking_id"), user_booked=user)
+    if not booking:
         return Response({"success": False, "message": "Booking not found."}, status=404)
     
     distance_km = calculate_distance_km(float(booking.storage_unit.latitude), float(booking.storage_unit.longitude), float(booking.return_lat), float(booking.return_lng))
 
     # price details 
-    storage_unit_instance = StorageUnit.objects.filter(id=booking.storage_unit).first()
+    storage_unit_instance = StorageUnit.objects.filter(id=booking.storage_unit.id).first()
     # Estimate amount: ₹50 base + ₹10/km
     estimated_amount = int(storage_unit_instance.price_per_hour) + (int(storage_unit_instance.price_per_km) * distance_km)
     estimated_amount = round(estimated_amount)
