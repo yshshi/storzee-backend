@@ -112,7 +112,7 @@ def login(request):
     send_login_otp_email(user.email,otp, user.full_name)
     return Response({
         'message': 'OTP is sent to your register email.',
-        'data': user,
+        'user_id': user.id,
         "is_register": True
     }, status=status.HTTP_200_OK)
     
