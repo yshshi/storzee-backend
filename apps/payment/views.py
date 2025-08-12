@@ -6,17 +6,20 @@ from django.shortcuts import get_object_or_404
 from apps.storage_bookings.models import StorageBooking
 from apps.users.models import User
 from apps.storage_units.models import StorageUnit
-from .utils import calculate_distance_km,create_razorpay_order
+from .utils import calculate_distance_km,create_razorpay_order,confirm_razorpay_payment
 from apps.wallet.models import UserWallet
+from apps.payment.models import Payment
+from rest_framework.serializers import ValidationError
+from rest_framework import status
 
 # Create your views here.
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def calculate_return_payment(request):
-    userId = request.user.get("user_id")
+    userId = request.data.get("user_id")
     user = User.objects.filter(id=userId).first()
-    if user.DoesNotExist:
+    if not user:
         return Response({'error': 'User does not exist.'}, status=400)
     booking_id = request.data.get('booking_id')
 
@@ -44,9 +47,9 @@ def calculate_return_payment(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def initiate_return_payment(request):
-    userId = request.user.get("user_id")
+    userId = request.data.get("user_id")
     user = User.objects.filter(id=userId).first()
-    if user.DoesNotExist:
+    if not user:
         return Response({'error': 'User does not exist.'}, status=400)
     data = request.data
     booking_id = data.get('booking_id')
@@ -57,9 +60,9 @@ def initiate_return_payment(request):
     if not booking_id or not payment_method:
         return Response({'error': 'Booking ID and payment method required.'}, status=400)
 
-    booking = get_object_or_404(StorageBooking, booking_id=booking_id, user_booked=user)
+    booking = get_object_or_404(StorageBooking, id=booking_id, user_booked=user)
 
-    if booking.status not in ['luggage_Stored', 'confirmed']:
+    if booking.status in ['completed', 'cancelled']:
         return Response({'error': 'Return cannot be initiated for current booking status.'}, status=400)
 
     total_return_amount = amount
@@ -88,13 +91,81 @@ def initiate_return_payment(request):
         # continue to Razorpay below
 
     if payment_method in ['razorpay', 'wallet+razorpay']:
-        razorpay_order = create_razorpay_order(amount=remaining_amount, booking=booking)
-        return Response({
-            'status': 'payment_pending',
-            'payment_method': payment_method,
-            'wallet_used': used_wallet,
-            'razorpay_order': razorpay_order,
-            'amount_due': remaining_amount
-        })
+        try:
+            razorpay_order = create_razorpay_order(amount=remaining_amount)
+
+            body = {
+                'user':user,
+                'booking': booking,
+                'razorpay_order_id': razorpay_order.get("id"),
+                'amount': amount,
+                'status': 'Initated',
+                'payment_method': payment_method,
+                'raw_response_from_razorpay': razorpay_order
+            }
+
+            payment__created = Payment.objects.create(**body)
+            return Response({
+                'status': status.HTTP_200_OK,
+                'message': 'Payment Order Created Succeefully !',
+                'payment_id': payment__created.id,
+                'razorpay_order': razorpay_order,
+            })
+        except Exception as e:
+            raise ValidationError({
+                "status": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "message": e
+            })
 
     return Response({'error': 'Invalid payment method.'}, status=400)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def razor_payment_confirm(request):
+    userId = request.data.get("user_id")
+    user = User.objects.filter(id=userId).first()
+    if not user:
+        return Response({'error': 'User does not exist.'}, status=400)
+    data = request.data
+    payment_id = data.get('payment_id')
+    razorpay_payment_id = data.get('razorpay_payment_id')
+    razorpay_signature = data.get('razorpay_signature')
+
+    if not all([userId, payment_id, razorpay_payment_id, razorpay_signature]):
+        return Response({"success": False, "message": "All feilds details are required."}, status=400)
+    
+    try:
+        payment_instance = Payment.objects.filter(id=payment_id).first()
+        if payment_instance.status in ['success', 'failed']:
+            return Response({'error': 'Return cannot be initiated for current booking status.'}, status=400)
+        
+        razorpay_order_id = payment_instance.razorpay_order_id
+        razorpay_order = confirm_razorpay_payment(razorpay_order_id=razorpay_order_id,razorpay_payment_id=razorpay_payment_id,razorpay_signature=razorpay_signature)
+
+        if razorpay_order.get("success") == True:
+
+            payment_instance.razorpay_payment_id = razorpay_payment_id
+            payment_instance.razorpay_signature = razorpay_signature
+            payment_instance.status = 'Success'
+            payment_instance.save()
+
+            return Response({
+                'status': status.HTTP_200_OK,
+                'message': 'Payment Verified Succeefully !',
+                'payment_id': payment_instance.id,
+            })
+        
+        else:
+            payment_instance.status = 'Failed'
+            payment_instance.save()
+
+            return Response({
+                'status': status.HTTP_400_BAD_REQUEST,
+                'message': 'Payment Verified Failed !',
+                'payment_id': payment_instance.id,
+            })
+    except Exception as e:
+        raise ValidationError({
+            "status": status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "message": e
+        })
