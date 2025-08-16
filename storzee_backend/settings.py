@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'corsheaders',
+    'channels',
 
 
     # Local apps (inside apps/)
@@ -71,7 +72,16 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'storzee_backend.wsgi.application'
+ASGI_APPLICATION = 'storzee_backend.wsgi.application'
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],  # your Redis instance
+        },
+    },
+}
 
 # Database config (PostgreSQL)
 DATABASES = {
