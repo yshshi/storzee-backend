@@ -13,6 +13,23 @@ env = environ.Env()
 from datetime import datetime, timedelta
 from django.utils import timezone
 from utils.get_city_name import get_city_name_from_coords
+import os
+from datetime import datetime
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.conf import settings
+from apps.wallet.models import SaathiWallet
+from apps.storage_bookings.models import StorageBooking
+from utils.calculate_route import calculate_route
+
+# Load configs from env
+BASE_FARE_DISTANCE = float(os.getenv("BASE_FARE_DISTANCE", 3))  # km
+BASE_FARE_AMOUNT = float(os.getenv("BASE_FARE_AMOUNT", 50))
+PER_KM_RATE = float(os.getenv("PER_KM_RATE", 10))
+TASK_BONUS = float(os.getenv("TASK_BONUS", 5))  # max extra
+ALLOWED_TIME_PER_KM = float(os.getenv("ALLOWED_TIME_PER_KM", 5))  # min/km
+
 
 # Create your views here.
 @api_view(['POST'])
@@ -334,3 +351,114 @@ def update_saathi_profile(request):
             'document_verified':user.document_verified
         }
     }, status=200)
+
+
+def calculate_fare(user_lat, user_lng, unit_lat, unit_lng, actual_time_taken=None):
+    """
+    Calculate fare & incentive/penalty
+    """
+
+    # --- Step 1: Get distance & duration from Google Maps ---
+    # directions = gmaps.directions(
+    #     (user_lat, user_lng),
+    #     (unit_lat, unit_lng),
+    #     mode="driving",
+    #     departure_time=datetime.now()
+    # )
+
+    # distance_meters = directions[0]['legs'][0]['distance']['value']
+    # duration_seconds = directions[0]['legs'][0]['duration']['value']
+
+    distance_km, expected_time_min, _ = calculate_route(user_lat, user_lng, unit_lat, unit_lng)
+
+    if distance_km is None:
+        return {"error": "Unable to calculate route."}
+    
+    distance_meters = distance_km * 1000
+
+    distance_km = distance_meters / 1000.0
+    expected_time_min = (distance_km * ALLOWED_TIME_PER_KM)
+
+    # --- Step 2: Fare calculation ---
+    if distance_km <= BASE_FARE_DISTANCE:
+        fare = BASE_FARE_AMOUNT
+    else:
+        extra_km = distance_km - BASE_FARE_DISTANCE
+        fare = BASE_FARE_AMOUNT + (extra_km * PER_KM_RATE)
+
+    # --- Step 3: Bonus/Penalty ---
+    bonus = TASK_BONUS
+    if actual_time_taken:
+        delay = actual_time_taken - expected_time_min
+        if delay > 0:
+            # Reduce bonus proportional to delay (e.g., lose 1 point every 5 min delay)
+            penalty = min(bonus, (delay / expected_time_min) * bonus)
+            bonus -= penalty
+
+    return {
+        "distance_km": round(distance_km, 2),
+        "expected_time_min": round(expected_time_min, 2),
+        "base_fare": round(fare, 2),
+        "bonus": round(bonus, 2),
+        "total_amount": round(fare + bonus, 2)
+    }
+
+
+class CalculateFareAPI(APIView):
+    """
+    API to calculate fare for a delivery task
+    """
+
+    def post(self, request):
+        user_lat = float(request.data.get("user_lat"))
+        user_lng = float(request.data.get("user_lng"))
+        unit_lat = float(request.data.get("unit_lat"))
+        unit_lng = float(request.data.get("unit_lng"))
+        actual_time_taken = request.data.get("actual_time_taken")  # minutes, optional
+
+        result = calculate_fare(user_lat, user_lng, unit_lat, unit_lng, float(actual_time_taken) if actual_time_taken else None)
+        return Response(result, status=status.HTTP_200_OK)
+
+
+class CompleteTaskAPI(APIView):
+    """
+    API to finalize task and credit Saathi wallet
+    """
+
+    def post(self, request, task_id):
+        try:
+            task = StorageBooking.objects.get(id=task_id)
+            actual_time_taken = float(request.data.get("actual_time_taken"))
+
+            current_context = request.data.get("current_context")
+
+            if current_context == 'pickup':
+                user_lat = task.storage_latitude
+                user_lng = task.storage_longitude
+                unit_lat = task.storage_unit.latitude
+                unit_lng = task.storage_unit.longitude
+            elif current_context == 'delivery':
+                user_lat = task.return_lat
+                user_lng = task.return_lng
+                unit_lat = task.storage_unit.latitude
+                unit_lng = task.storage_unit.longitude
+
+            result = calculate_fare(
+                user_lat, user_lng, unit_lat, unit_lng,
+                actual_time_taken
+            )
+
+            # Update wallet
+            wallet, _ = SaathiWallet.objects.get_or_create(saathi=task.assigned_saathi)
+            wallet.balance += result["total_amount"]
+            wallet.save()
+
+            task.status = "completed"
+            task.completed_at = datetime.now()
+            task.earned_amount = result["total_amount"]
+            task.save()
+
+            return Response({"booking_id": task.id, "payout": result}, status=status.HTTP_200_OK)
+
+        except StorageBooking.DoesNotExist:
+            return Response({"error": "Booking not found"}, status=status.HTTP_404_NOT_FOUND)

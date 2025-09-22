@@ -2,6 +2,7 @@ from django.db import models
 from apps.meta_app.models import MyBaseModel
 from apps.users.models import User
 from apps.storage_units.models import StorageUnit
+from apps.saathi.models import Saathi
 
 # Create your models here.
 class StorageBooking(MyBaseModel):
@@ -27,7 +28,7 @@ class StorageBooking(MyBaseModel):
     storage_image_url = models.URLField(blank=True, null=True)
     luggage_images = models.JSONField(default=list, blank=True, null=True)
     storage_weight = models.CharField(max_length=100, blank=True, null=True)
-    assigned_saathi = models.ForeignKey(User, on_delete=models.CASCADE, related_name='saathi', null=True, blank=True)
+    assigned_saathi = models.ForeignKey(Saathi, on_delete=models.CASCADE, related_name='saathi', null=True, blank=True)
     luggage_rakshak = models.ForeignKey(User, on_delete=models.CASCADE, related_name='rakshak',null=True,blank=True)
     is_active = models.BooleanField(default=False)
     amount = models.CharField(max_length=10, blank=True, null=True)
