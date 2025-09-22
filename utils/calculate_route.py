@@ -4,7 +4,7 @@ from django.conf import settings
 import environ
 env = environ.Env()
 
-key = env('OPEN_ROUTE_SERVICE_KEY') 
+key = 'OPEN_ROUTE_SERVICE_KEY=eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6Ijc3NGMyZGNiYzg1MDQ4YmZiNzlkM2YyZWI3NzFjMTg3IiwiaCI6Im11cm11cjY0In0=' 
 
 # Create a client
 client = openrouteservice.Client(key=key)  # store your key in Django settings
