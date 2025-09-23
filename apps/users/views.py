@@ -64,7 +64,8 @@ def register(request):
             'phone': phone,
             'otp': otp,
             'profile_picture':randomAvatar,
-            'role': role
+            'role': role,
+            'otp_generated_time': timezone.now()
         }
         send_otp_email(email,otp, full_name)
         user_created = User.objects.create(**req_body)
@@ -108,6 +109,7 @@ def login(request):
     
     otp = generate_otp()
     user.otp = otp
+    user.otp_generated_time = timezone.now()
     user.save()
     send_login_otp_email(user.email,otp, user.full_name)
     return Response({
@@ -191,11 +193,11 @@ def verify_otp(request):
             "message": "User not found!"
         }, status=404)
     
-    # if user.otp_generated_time and timezone.now() > user.otp_generated_time + timedelta(minutes=10):
-    #     return Response({
-    #         "success": "Fail",
-    #         "message": "OTP has expired. Please request a new one."
-    #     }, status=400)
+    if user.otp_generated_time and timezone.now() > user.otp_generated_time + timedelta(minutes=10):
+        return Response({
+            "success": "Fail",
+            "message": "OTP has expired. Please request a new one."
+        }, status=400)
 
     if user.otp != otp:
         return Response({
