@@ -191,11 +191,11 @@ def verify_otp(request):
             "message": "User not found!"
         }, status=404)
     
-    if user.otp_generated_time and timezone.now() > user.otp_generated_time + timedelta(minutes=10):
-        return Response({
-            "success": "Fail",
-            "message": "OTP has expired. Please request a new one."
-        }, status=400)
+    # if user.otp_generated_time and timezone.now() > user.otp_generated_time + timedelta(minutes=10):
+    #     return Response({
+    #         "success": "Fail",
+    #         "message": "OTP has expired. Please request a new one."
+    #     }, status=400)
 
     if user.otp != otp:
         return Response({
