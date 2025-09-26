@@ -258,30 +258,36 @@ def upload_saathi_documents(request):
             "message": "User not found!"
         }, status=404)
     
-    user.vehicle_number= vehicle_number
-    user.pan_card_number = pan_card_number
-    user.aadhaar_card_number = aadhar_card_number
-    user.pan_card_upload_link = pan_card
-    user.aadhaar_card_upload_link = aadhar_card
-    user.profile_verified = True
-    user.terms_and_condition_agreed = True
-    user.save()
+    try:
+    
+        user.vehicle_number= vehicle_number
+        user.pan_card_number = pan_card_number
+        user.aadhaar_card_number = aadhar_card_number
+        user.pan_card_upload_link = pan_card
+        user.aadhaar_card_upload_link = aadhar_card
+        user.profile_verified = True
+        user.terms_and_condition_agreed = True
+        user.save()
 
-    response_body = {
-        'saathi_id': user.id,
-        'full_name': user.full_name,
-        'phone': user.phone,
-        'email': user.email,
-        'is_verified': user.is_verified,
-        'profile_verified': user.profile_verified,
-        'document_verified':user.document_verified
-    }
+        response_body = {
+            'saathi_id': user.id,
+            'full_name': user.full_name,
+            'phone': user.phone,
+            'email': user.email,
+            'is_verified': user.is_verified,
+            'profile_verified': user.profile_verified,
+            'document_verified':user.document_verified
+        }
 
-    return Response({
-        "success": "Success",
-        "message": "Profile verified successfully!",
-        "data": response_body
-    }, status=200)
+        return Response({
+            "success": "Success",
+            "message": "Profile verified successfully!",
+            "data": response_body
+        }, status=200)
+    
+    except Exception as e:
+        print(e)
+        return Response({"success": False, "message": "Something went wrong."}, status=500)
 
 @api_view(['PUT'])
 @permission_classes([AllowAny])
