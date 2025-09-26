@@ -85,6 +85,7 @@ def saathi_login(request):
     
     otp = generate_otp()
     user_instance.otp = otp
+    user_instance.otp_generated_time = timezone.now()
     user_instance.save()
     if env('ENV')=='Prod':
         send_login_otp_email(user_instance.email,otp, user_instance.full_name)
