@@ -162,7 +162,8 @@ def register_saathi(request):
             'email': email,
             'phone': phone,
             'otp': otp,
-            'role': role
+            'role': role,
+            'otp_generated_time': timezone.now()
         }
         user_created = Saathi.objects.create(**req_body)
 
@@ -246,7 +247,7 @@ def upload_saathi_documents(request):
     pan_card = request.data.get("pan_card")
     aadhar_card = request.data.get("aadhar_card")
 
-    if not all([user_id, pan_card_number, aadhar_card_number, vehicle_number,pan_card,aadhar_card]):
+    if not all([user_id, pan_card_number, aadhar_card_number, vehicle_number]):
         return Response({"success": False, "message": "All feilds details are required."}, status=400)
     
     try:
