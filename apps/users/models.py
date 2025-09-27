@@ -67,6 +67,10 @@ class UserNotification(models.Model):
     message = models.TextField(blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
+    type = models.CharField(max_length=50, blank=True, null=True)
+    isRead = models.BooleanField(default=False)
+    priority = models.CharField(max_length=50, blank=True, null=True)
+    actionRequired = models.BooleanField(default=False)
     class Meta:
         ordering = ['-created_at']
 

@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from .models import User, UserNotification, UserDeviceToken
 from rest_framework import status
-from .utils import is_valid_email,is_valid_phone,generate_otp,validate_email_or_phone,generate_random_number
+from .utils import is_valid_email,is_valid_phone,generate_otp,validate_email_or_phone,generate_random_number,get_time_diff
 from utils.send_email import send_otp_email,send_login_otp_email
 from datetime import datetime, timedelta
 from django.utils import timezone
@@ -354,9 +354,14 @@ def user_notification(request):
     # Convert queryset to list of dicts
     notifications_list = [
         {
-            "notification_title": n.title,
-            "notification_message": n.message,
-            "notification_created_at": n.created_at
+            "id": n.id,
+            "type": n.type,
+            "title": n.title,
+            "message": n.message,
+            "time": get_time_diff(n.created_at),
+            "isRead": n.isRead,
+            "priority": n.priority,
+            "actionRequired": n.actionRequired
         }
         for n in notifications
     ]

@@ -1,5 +1,6 @@
 import re
 import random
+from datetime import datetime, timezone
 
 def is_valid_email(email):
     pattern = r'^[\w\.-]+@[\w\.-]+\.\w+$'
@@ -33,3 +34,21 @@ def validate_email_or_phone(input_str):
         
 def generate_random_number():
     return str(random.randint(1, 99))
+
+def get_time_diff(created_at):
+    now = datetime.now(timezone.utc)   # current UTC time
+    diff = now - created_at
+
+    seconds = diff.total_seconds()
+    minutes = seconds // 60
+    hours = minutes // 60
+    days = diff.days
+
+    if seconds < 60:
+        return f"{int(seconds)} seconds ago"
+    elif minutes < 60:
+        return f"{int(minutes)} minutes ago"
+    elif hours < 24:
+        return f"{int(hours)} hours ago"
+    else:
+        return f"{days} days ago"
