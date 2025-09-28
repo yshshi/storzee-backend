@@ -41,7 +41,8 @@ INSTALLED_APPS = [
     'apps.storage_bookings',
     'apps.saathi',
     'apps.wallet',
-    'apps.payment'
+    'apps.payment',
+    'apps.assist'
 ]
 
 MIDDLEWARE = [

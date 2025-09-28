@@ -25,6 +25,7 @@ urlpatterns = [
     path('api/saathi/', include('apps.saathi.urls')),
     path('api/payment/', include('apps.payment.urls')),
     path('api/wallet/', include('apps.wallet.urls')),
+    path('api/assist/', include('apps.assist.urls')),
     # path('api/booking/', include('apps.storage_bookings.urls'))
 ]
 

@@ -6,6 +6,7 @@ from .models import User
 from rest_framework import status
 from .models import StorageUnit , Feedback
 from .utils import haversine
+from utils.get_city_name import get_city_name_from_coords
 
 # Create your views here.
 @api_view(['POST'])
@@ -43,6 +44,9 @@ def create_storage_unit(request):
         rating = request.data.get('rating', 0.0)
         benefits = request.data.get('benefits', [])
 
+        city = get_city_name_from_coords(lat=latitude,lng=longitude)
+        city_name = city if city else "Unknown"
+
         storage = StorageUnit.objects.create(
             owner=owner,
             title=title,
@@ -51,7 +55,7 @@ def create_storage_unit(request):
             longitude=longitude,
             benefits=benefits,
             address=address,
-            city=city,
+            city=city_name,
             state=state,
             pincode=pincode,
             capacity=capacity,
