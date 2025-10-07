@@ -5,8 +5,9 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from .models import User
 from rest_framework import status
 from .models import StorageUnit , Feedback
-from .utils import haversine
+from .utils import haversine,calculate_distance
 from utils.get_city_name import get_city_name_from_coords
+from django.db.models import Q
 
 # Create your views here.
 @api_view(['POST'])
@@ -248,5 +249,54 @@ def get_storage_details(request):
     }
     return Response({
         "success": True,
+        "data": data
+    }, status=200)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def search_storage_units(request):
+    search_query = request.query_params.get('query', '')
+    user_lat = float(request.query_params.get('lat', 0))
+    user_lng = float(request.query_params.get('lng', 0))
+
+    if not search_query:
+        return Response({
+            "success": False,
+            "message": "Search query is required."
+        }, status=400)
+
+    # Search by title or address (case-insensitive)
+    storage_units = StorageUnit.objects.filter(
+        Q(title__icontains=search_query) | Q(address__icontains=search_query)
+    )
+
+    if not storage_units.exists():
+        return Response({
+            "success": False,
+            "message": "No matching storage units found.",
+            "data": []
+        }, status=404)
+
+    data = []
+    for unit in storage_units:
+        # Calculate distance
+        distance_km = calculate_distance(user_lat, user_lng, unit.latitude, unit.longitude)
+
+        # Handle images (assuming JSONField or related image model)\
+        images = [img.image_url for img in unit.images.all()] if unit.images.exists() else []
+
+        data.append({
+            "id": str(unit.id),
+            "title": unit.title,
+            "address": unit.address,
+            "price_per_hour": float(unit.price_per_hour or 0),
+            "rating": float(unit.rating or 0),
+            "distance_km": round(distance_km, 2),
+            "images": images,
+        })
+
+    return Response({
+        "success": True,
+        "message": "Storage units found.",
         "data": data
     }, status=200)
