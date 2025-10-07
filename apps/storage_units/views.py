@@ -172,33 +172,23 @@ def get_nearby_storage_units(request):
         images = [img.image_url for img in unit.images.all()]
 
         # Fetch feedback details
-        feedbacks = []
-        for feedback in unit.feedbacks.select_related('user').all():
-            feedbacks.append({
-                "user": feedback.user.full_name,
-                "rating": feedback.rating,
-                "comment": feedback.comment,
-                "created_at": feedback.created_at.strftime('%Y-%m-%d %H:%M:%S')
-            })
+        # feedbacks = []
+        # for feedback in unit.feedbacks.select_related('user').all():
+        #     feedbacks.append({
+        #         "user": feedback.user.full_name,
+        #         "rating": feedback.rating,
+        #         "comment": feedback.comment,
+        #         "created_at": feedback.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        #     })
 
         result.append({
             "id": str(unit.id),
             "title": unit.title,
-            "owner": unit.owner.full_name,
-            "description": unit.description,
             "address": unit.address,
-            "city": unit.city,
-            "state": unit.state,
-            "pincode": unit.pincode,
-            "latitude": unit.latitude,
-            "longitude": unit.longitude,
             "price_per_hour": float(unit.price_per_hour or 0),
-            "price_per_km": float(unit.price_per_km or 0),
             "rating": unit.rating,
-            "benefits": unit.benefits,
             "distance_km": round(distance_km, 2),
             "images": images,
-            "feedbacks": feedbacks
         })
 
     # Sort by distance
@@ -207,4 +197,56 @@ def get_nearby_storage_units(request):
     return Response({
         "success": True,
         "data": result
+    }, status=200)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_storage_details(request):
+    storage_id = request.data.get('storage_id')
+    if not storage_id:
+        return Response({
+            "success": False,
+            "message": "Storage Id is required!"
+        }, status=400)
+    
+    unit = StorageUnit.objects.filter(id=storage_id).first()
+    if not unit:
+        return Response({
+            "success": False,
+            "message": "Storage unit not found!"
+        }, status=404)
+    
+    images = [img.image_url for img in unit.images.all()]
+
+        # Fetch feedback details
+    feedbacks = []
+    for feedback in unit.feedbacks.select_related('user').all():
+        feedbacks.append({
+            "user": feedback.user.full_name,
+            "rating": feedback.rating,
+            "comment": feedback.comment,
+            "created_at": feedback.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        })
+    
+    data = {
+        "id": str(unit.id),
+        "title": unit.title,
+        "owner": unit.owner.full_name,
+        "description": unit.description,
+        "address": unit.address,
+        "city": unit.city,
+        "state": unit.state,
+        "pincode": unit.pincode,
+        "latitude": unit.latitude,
+        "longitude": unit.longitude,
+        "price_per_hour": float(unit.price_per_hour or 0),
+        "price_per_km": float(unit.price_per_km or 0),
+        "rating": unit.rating,
+        "benefits": unit.benefits,
+        "images": images,
+        "feedbacks": feedbacks
+    }
+    return Response({
+        "success": True,
+        "data": data
     }, status=200)
