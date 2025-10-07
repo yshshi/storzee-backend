@@ -7,7 +7,7 @@ from django.utils import timezone
 from apps.users.models import User
 from apps.storage_units.models import StorageUnit
 from apps.storage_bookings.models import StorageBooking
-from apps.storage_bookings.utils import generate_booking_id,calculate_distance_km
+from apps.storage_bookings.utils import generate_booking_id,calculate_distance_km,return_type,return_status
 import datetime
 from django.utils.timezone import localtime
 from rest_framework import status
@@ -464,3 +464,38 @@ def validate_delivery(request):
         "success": True,
         "message": "Delievry Validated"
     })
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def booking_details(request):
+    user_id = request.query_params.get('user_id')  # Get from URL params
+    storage_instances = StorageBooking.objects.filter(user_booked=user_id)
+
+    if not storage_instances.exists():
+        return Response({
+            "success": False,
+            "message": "No luggage found for this user.",
+            "data": []
+        }, status=404)
+
+    data = []
+    for s in storage_instances:
+        data.append({
+            "id": str(s.id),
+            "type": return_type(s.status),
+            "serviceName": s.storage_unit.title if s.storage_unit else "",
+            "providerName": s.storage_unit.address if s.storage_unit else "",
+            "date": localtime(s.booking_created_time).strftime("%Y-%m-%d") if s.booking_created_time else "",
+            "time": localtime(s.booking_created_time).strftime("%I:%M %p") if s.booking_created_time else "",
+            "location": s.storage_booked_location,
+            "price": s.amount,
+            "status": return_status(s.status),
+            "bookingNumber": s.booking_id,
+        })
+
+    return Response({
+        "success": True,
+        "message": "Luggage Found!",
+        "data": data
+    }, status=200)

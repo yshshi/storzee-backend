@@ -8,7 +8,7 @@ from .models import UserWallet, SaathiWallet
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def get_user_wallet(request):
-    wallet = UserWallet.objects.filter(user=request.data.get("user_id")).first()
+    wallet = UserWallet.objects.filter(user=request.query_params.get("user_id")).first()
     if not wallet:
         return Response({"success": False, "message": "Wallet not found"}, status=404)
 

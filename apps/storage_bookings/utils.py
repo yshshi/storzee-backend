@@ -17,3 +17,23 @@ def calculate_distance_km(lat1, lon1, lat2, lon2):
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
     return R * c
+
+def return_type(value):
+    if value == None:
+        return 'Active'
+    elif value == 'completed':
+        return 'Completed'
+    elif value == 'cancelled':
+        return 'Cancelled'
+    else:
+        return 'Active'
+    
+def return_status(value):
+    if value == None:
+        return 'In Progress'
+    elif value == 'completed':
+        return 'Completed'
+    elif value == 'cancelled':
+        return 'Cancelled'
+    else:
+        return 'In Progress'
