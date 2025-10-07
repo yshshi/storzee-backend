@@ -141,7 +141,7 @@ def create_feedback(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_nearby_storage_units(request):
-    user_id = request.data.get('user_id')
+    user_id = request.query_params.get('user_id')
     if not user_id:
         return Response({
             "success": False,
@@ -202,7 +202,7 @@ def get_nearby_storage_units(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_storage_details(request):
-    storage_id = request.data.get('storage_id')
+    storage_id = request.query_params.get('storage_id')
     if not storage_id:
         return Response({
             "success": False,

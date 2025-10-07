@@ -327,7 +327,7 @@ def update_profile(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def user_notification(request):
-    user_id = request.data.get("user_id")
+    user_id = request.query_params.get("user_id")
     
     if not user_id:
         return Response({
@@ -374,7 +374,7 @@ def user_notification(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def user_details(request):
-    user_id = request.data.get("user_id")
+    user_id = request.query_params.get("user_id")
     
     if not user_id:
         return Response({
