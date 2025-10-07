@@ -50,7 +50,7 @@ def ai_answer(user_msg: str, nearby_units: list, userlat: float = None, userlon:
 
 # curl "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent" \
 #   -H 'Content-Type: application/json' \
-#   -H 'X-goog-api-key: AIzaSyAU1N7BYwp9TT6tSgmT8mDbZVQXJocqG4I' \
+#   -H 'X-goog-api-key:' \
 #   -X POST \
 #   -d '{
 #     "contents": [
