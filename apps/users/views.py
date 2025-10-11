@@ -2,13 +2,21 @@ from django.shortcuts import render
 from rest_framework.decorators import api_view, permission_classes 
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from .models import User, UserNotification, UserDeviceToken
+from .models import User, UserNotification, UserDeviceToken , UserDocument
 from rest_framework import status
 from .utils import is_valid_email,is_valid_phone,generate_otp,validate_email_or_phone,generate_random_number,get_time_diff
 from utils.send_email import send_otp_email,send_login_otp_email
 from datetime import datetime, timedelta
 from django.utils import timezone
 from utils.get_city_name import get_city_name_from_coords
+import os
+import requests
+from django.db import transaction
+
+# IMGHIPPO_API_KEY = os.getenv('IMGHIPPO_API_KEY')
+# IMGHIPPO_API_URL = os.getenv('IMGHIPPO_API_URL')
+IMGHIPPO_API_KEY='5bdb0de157663336f3290b8a98e80d47'
+IMGHIPPO_API_URL='https://api.imghippo.com/v1/upload'
 
 # Create your views here.
 
@@ -459,5 +467,81 @@ def update_device_token(request):
             "token": user_token.token,
             "device": user_token.device,
             "created": created
+        }
+    }, status=200)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def user_document_upload(request):
+    file = request.FILES.get('file')
+    user_id = request.data.get("user_id")
+
+    if not user_id:
+        return Response({
+            "success": "Fail",
+            "message": "User ID is required."
+        }, status=400)
+    
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response({
+            "success": "Fail",
+            "message": "User not found."
+        }, status=404)
+    
+    if not file:
+            return Response({'detail':'file is required'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    max_size = 10 * 1024 * 1024  # 10MB
+    if file.size > max_size:
+        return Response({'detail':'file too large'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    api_key = IMGHIPPO_API_KEY
+    if not api_key:
+        return Response({'detail':'Image upload service key not configured'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    imghippo_url = IMGHIPPO_API_URL
+    if not imghippo_url:
+        return Response({'detail':'Image upload service URL not configured'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    files = {'file': (file.name, file, file.content_type)}
+    data  = {'api_key': IMGHIPPO_API_KEY}
+    headers = {'User-Agent': 'Mozilla/5.0 (compatible; my-service/1.0)'}
+
+
+    try:
+        
+        resp = requests.post(IMGHIPPO_API_URL, files=files, data=data, headers=headers, timeout=30)
+        print(resp.status_code, resp.text)
+        print(resp)
+    except requests.RequestException as exc:
+        return Response({'detail':'Image upload service error', 'error': str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    if resp.status_code != 200:
+        return Response({'detail':'imghippo error','status_code': resp.status_code,'body': resp.text},
+                        status=500
+                        )
+    
+    try:
+        resp_json = resp.json()
+    except ValueError:
+        return Response({'detail':'imghippo returned invalid json'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    imghippo_url = resp_json.get('data', {}).get('view_url')
+
+    with transaction.atomic():
+            doc = UserDocument.objects.create(
+                user=user,
+                original_name=file.name,
+                imghippo_url=imghippo_url,
+                response_json=resp_json
+            )
+
+    return Response({
+        "success": "Pass",
+        "message": "Device token saved successfully.",
+        "data": {
+            "image_url": doc.imghippo_url
         }
     }, status=200)
