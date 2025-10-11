@@ -9,7 +9,7 @@ from rest_framework.decorators import api_view, permission_classes
 # Create your views here.
 # apps/assist/views.py
 
-@api_view(["GET"])
+@api_view(["POST"])
 @permission_classes([AllowAny])
 def ai_assist(request):
     data = request.data
