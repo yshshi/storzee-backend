@@ -16,9 +16,14 @@ import uuid
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from rest_framework import status
+import boto3
 
 # IMGHIPPO_API_KEY = os.getenv('IMGHIPPO_API_KEY')
 # IMGHIPPO_API_URL = os.getenv('IMGHIPPO_API_URL')
+AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
+AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME')
+AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
 IMGHIPPO_API_KEY='5bdb0de157663336f3290b8a98e80d47'
 IMGHIPPO_API_URL='https://api.imghippo.com/v1/upload'
 
@@ -517,6 +522,18 @@ def user_document_upload(request):
             response_json={"storage_path": saved_path, "size": file.size, "uploaded_at": timezone.now().isoformat()},
             created_at=timezone.now()
         )
+        # url = doc.imghippo_url
+        # key = url.split(f"{AWS_STORAGE_BUCKET_NAME}/")[-1]
+        # s3 = boto3.client(
+        # "s3",
+        # aws_access_key_id=AWS_ACCESS_KEY_ID,
+        # aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+        # region_name=AWS_S3_REGION_NAME,)
+
+        # presigned_url = s3.generate_presigned_url(
+        # 'get_object',
+        # Params={'Bucket': AWS_STORAGE_BUCKET_NAME, 'Key': key},
+        # ExpiresIn=3600)
 
         return Response({
             "success": "OK",
