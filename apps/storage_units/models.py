@@ -1,6 +1,7 @@
 from django.db import models
 from apps.meta_app.models import MyBaseModel
 from apps.users.models import User
+import uuid
 
 # Create your models here.
 
@@ -51,3 +52,48 @@ class StorageImage(models.Model):
 
     def __str__(self):
         return f"Image for {self.storage_unit.title}"
+
+
+class Addon(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=200)
+    base_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    description = models.TextField(blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+    
+class StorageUnitAddon(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    storage_unit = models.ForeignKey(
+        'StorageUnit',
+        on_delete=models.CASCADE,
+        related_name='storage_unit_addons'
+    )
+    addon = models.ForeignKey(
+        Addon,
+        on_delete=models.CASCADE,
+        related_name='storage_unit_addons'
+    )
+    price_override = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    is_available = models.BooleanField(default=False) 
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('storage_unit', 'addon')
+        indexes = [
+            models.Index(fields=['storage_unit']),
+            models.Index(fields=['addon']),
+        ]
+
+    def __str__(self):
+        return f"{self.addon.name} @ {self.storage_unit.id}"
+
+    @property
+    def effective_price(self):
+        return self.price_override if self.price_override is not None else self.addon.base_price
