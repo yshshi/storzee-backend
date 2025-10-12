@@ -12,6 +12,10 @@ from utils.get_city_name import get_city_name_from_coords
 import os
 import requests
 from django.db import transaction
+import uuid
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
+from rest_framework import status
 
 # IMGHIPPO_API_KEY = os.getenv('IMGHIPPO_API_KEY')
 # IMGHIPPO_API_URL = os.getenv('IMGHIPPO_API_URL')
@@ -477,71 +481,54 @@ def user_document_upload(request):
     user_id = request.data.get("user_id")
 
     if not user_id:
-        return Response({
-            "success": "Fail",
-            "message": "User ID is required."
-        }, status=400)
-    
+        return Response({"success": "Fail", "message": "User ID is required."}, status=400)
+
     try:
         user = User.objects.get(id=user_id)
     except User.DoesNotExist:
-        return Response({
-            "success": "Fail",
-            "message": "User not found."
-        }, status=404)
-    
+        return Response({"success": "Fail", "message": "User not found."}, status=404)
+
     if not file:
-            return Response({'detail':'file is required'}, status=status.HTTP_400_BAD_REQUEST)
-    
+        return Response({"detail": "file is required"}, status=status.HTTP_400_BAD_REQUEST)
+
     max_size = 10 * 1024 * 1024  # 10MB
     if file.size > max_size:
-        return Response({'detail':'file too large'}, status=status.HTTP_400_BAD_REQUEST)
-    
-    api_key = IMGHIPPO_API_KEY
-    if not api_key:
-        return Response({'detail':'Image upload service key not configured'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
-    imghippo_url = IMGHIPPO_API_URL
-    if not imghippo_url:
-        return Response({'detail':'Image upload service URL not configured'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
-    files = {'file': (file.name, file, file.content_type)}
-    data  = {'api_key': IMGHIPPO_API_KEY}
-    headers = {'User-Agent': 'Mozilla/5.0 (compatible; my-service/1.0)'}
+        return Response({"detail": "file too large"}, status=status.HTTP_400_BAD_REQUEST)
 
+    # build S3 key: documents/{user_id}/{uuid4}_{original_filename}
+    ext = file.name.split('.')[-1] if '.' in file.name else ''
+    key = f"documents/{user_id}/{uuid.uuid4().hex}"
+    if ext:
+        key = f"{key}.{ext}"
 
     try:
-        
-        resp = requests.post(IMGHIPPO_API_URL, files=files, data=data, headers=headers, timeout=30)
-        print(resp.status_code, resp.text)
-        print(resp)
-    except requests.RequestException as exc:
-        return Response({'detail':'Image upload service error', 'error': str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
-    if resp.status_code != 200:
-        return Response({'detail':'imghippo error','status_code': resp.status_code,'body': resp.text},
-                        status=500
-                        )
-    
-    try:
-        resp_json = resp.json()
-    except ValueError:
-        return Response({'detail':'imghippo returned invalid json'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
-    imghippo_url = resp_json.get('data', {}).get('view_url')
+        # Save file to configured storage (S3 if DEFAULT_FILE_STORAGE uses S3Boto3Storage)
+        content = ContentFile(file.read())
+        saved_path = default_storage.save(key, content)
 
-    with transaction.atomic():
-            doc = UserDocument.objects.create(
-                user=user,
-                original_name=file.name,
-                imghippo_url=imghippo_url,
-                response_json=resp_json
-            )
+        # Get public or signed URL depending on your storage config
+        file_url = default_storage.url(saved_path)
 
-    return Response({
-        "success": "Pass",
-        "message": "Device token saved successfully.",
-        "data": {
-            "image_url": doc.imghippo_url
-        }
-    }, status=200)
+        # Save DB record
+        doc = UserDocument.objects.create(
+            user=user,
+            original_name=file.name[:512],
+            imghippo_url=file_url,
+            response_json={"storage_path": saved_path, "size": file.size, "uploaded_at": timezone.now().isoformat()},
+            created_at=timezone.now()
+        )
+
+        return Response({
+            "success": "OK",
+            "data": {
+                "id": str(doc.id),
+                "original_name": doc.original_name,
+                "url": doc.imghippo_url,
+                "response_json": doc.response_json,
+                "created_at": doc.created_at
+            }
+        }, status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        # log exception in real app
+        return Response({"success": "Fail", "message": str(e)}, status=500)
