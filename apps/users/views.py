@@ -407,13 +407,24 @@ def user_details(request):
             "message": "User not found."
         }, status=404)
     
+    user_documents = UserDocument.objects.filter(user_id=user_id).order_by('-created_at')
+    documents_list = [
+        {
+            "id": str(doc.id),
+            "original_name": doc.original_name,
+            "url": doc.imghippo_url,
+        }
+        for doc in user_documents
+    ]
+    
     req_body = {
         'id': user.id,
         'full_name': user.full_name,
         'city_name': user.city_name,
         'email': user.email,
         'phone': user.phone,
-        'profile_picture': user.profile_picture
+        'profile_picture': user.profile_picture,
+        'documents': documents_list
     }
     return Response({
         "success": "Success",
