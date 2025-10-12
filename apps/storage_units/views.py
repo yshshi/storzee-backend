@@ -318,7 +318,7 @@ def addons_storage_item(request):
             "message": "Storage unit not found!"
         }, status=404)
 
-    unit_addons = StorageUnitAddon.objects.filter(storage_unit=unit, available=True).select_related('addon')
+    unit_addons = StorageUnitAddon.objects.filter(storage_unit=unit).select_related('addon')
 
     addons = []
     for ua in unit_addons:

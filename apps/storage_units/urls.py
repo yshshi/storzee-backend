@@ -1,6 +1,6 @@
 from django.urls import path, re_path
 from rest_framework.routers import DefaultRouter
-from .views import create_feedback,create_storage_unit,get_nearby_storage_units,get_storage_details,search_storage_units
+from .views import create_feedback,create_storage_unit,get_nearby_storage_units,get_storage_details,search_storage_units,addons_storage_item
 router = DefaultRouter(trailing_slash=False)
 
 
@@ -11,6 +11,7 @@ urlpatterns = [
     re_path(r'^get_nearby_storage_units', get_nearby_storage_units, name='get_nearby_storage_units'),
     re_path(r'^get_storage_details', get_storage_details, name='get_storage_details'),
     re_path(r'^search_storage_units', search_storage_units, name='search_storage_units'),
+    re_path(r'^addons_storage_item', addons_storage_item, name='addons_storage_item'),
 
 
     *router.urls
