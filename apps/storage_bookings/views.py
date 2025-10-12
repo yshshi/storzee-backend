@@ -6,37 +6,42 @@ from rest_framework.response import Response
 from django.utils import timezone
 from apps.users.models import User
 from apps.storage_units.models import StorageUnit
-from apps.storage_bookings.models import StorageBooking
-from apps.storage_bookings.utils import generate_booking_id,calculate_distance_km,return_type,return_status
+from apps.storage_bookings.models import StorageBooking , BookingAddon
+from apps.storage_bookings.utils import get_next_bag_id,calculate_distance_km,return_type,return_status,compute_booking_end_time,parse_addons_param
+
 import datetime
 from django.utils.timezone import localtime
 from rest_framework import status
 from django.core.files.base import ContentFile
 import base64
-from apps.storage_units.models import StorageUnit
+from apps.storage_units.models import StorageUnit,Addon
 from apps.saathi.utils import trigger_notification_to_saathi, trigger_notification_to_saathi_return
 from utils.trigger_notiifcation import send_push_notification_to_user_for_delivery_arrived
 from apps.saathi.models import Saathi
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
+from rest_framework import status
+import os
+from django.db import transaction
 
+MAX_BOOKING_TIME = os.getenv('MAX_BOOKING_TIME')
 # Create your views here.
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def create_booking(request):
     try:
-        data = request.data
-
-        user_id = data.get("user_id")
-        storage_unit_id = data.get("storage_unit_id")
-        booking_type = data.get("booking_type")  # 'hourly' or 'daily'
-        start_time = data.get("booking_created_time")
-        # storage_weight = data.get("storage_weight")
-        storage_booked_location = data.get("storage_booked_location")
-        # storage_image_url = data.get("storage_image_url")
-        user_remark = data.get("user_remark", "")
-        amount = data.get("amount")
-        latitude = data.get("latitude")
-        longitude = data.get("longitude")
+        file = request.FILES.get('luggage_pic')
+        user_id = request.data.get("user_id")
+        storage_unit_id = request.data.get("storage_unit_id")
+        start_time = request.data.get("booking_created_time")
+        storage_booked_location = request.data.get("storage_booked_location")
+        addons_param = request.data.get('addons')
+        amount = request.data.get("amount")
+        latitude = request.data.get("latitude")
+        longitude = request.data.get("longitude")
+        user_remark = request.data.get("user_remark", "")
+        luggage_time = request.data.get("luggage_time")
 
         # Validation
         if not all([user_id, storage_unit_id, start_time, latitude, longitude]):
@@ -45,36 +50,76 @@ def create_booking(request):
                 "message": "All required fields must be provided."
             }, status=400)
         
-        if booking_type is None:
-            booking_type = 'others'
-        
-        # if not storage_image_url and not storage_weight:
-        #     return Response({
-        #         "success": False,
-        #         "message": "Image and Luggage Weight is mandatory to book a storage."
-        #     }, status=400)
+        if not file:
+            return Response({"detail": "Luggage Picture is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        user = User.objects.get(id=user_id)
-        storage_unit = StorageUnit.objects.get(id=storage_unit_id)
+        max_size = 10 * 1024 * 1024  # 10MB
+        if file.size > max_size:
+            return Response({"detail": "file too large"}, status=status.HTTP_400_BAD_REQUEST)
 
-        booking_id = generate_booking_id()
+        # build S3 key: documents/{user_id}/{uuid4}_{original_filename}
+        ext = file.name.split('.')[-1] if '.' in file.name else ''
+        key = f"luggage/{user_id}/{uuid.uuid4().hex}"
+        if ext:
+            key = f"{key}.{ext}"
 
-        booking = StorageBooking.objects.create(
-            user_booked=user,
-            storage_unit=storage_unit,
-            booking_id=booking_id,
-            booking_type=booking_type,
-            booking_created_time=start_time,
-            status='active',
-            # storage_image_url=storage_image_url,
-            # storage_weight=storage_weight,
-            is_active=True,
-            storage_booked_location=storage_booked_location,
-            user_remark=user_remark,
-            amount=amount,
-            storage_latitude=latitude,
-            storage_longitude=longitude
-        )
+        try:
+            # Save file to configured storage (S3 if DEFAULT_FILE_STORAGE uses S3Boto3Storage)
+            content = ContentFile(file.read())
+            saved_path = default_storage.save(key, content)
+
+            # Get public or signed URL depending on your storage config
+            file_url = default_storage.url(saved_path)
+        except Exception as e:
+        # log exception in real app
+            return Response({"success": "Fail", "message": str(e)}, status=500)
+
+        try:
+            user = User.objects.get(id=user_id)
+            storage_unit = StorageUnit.objects.get(id=storage_unit_id)
+
+            booking_id = get_next_bag_id()
+            booking_type='Hourly' 
+
+            if not luggage_time:
+                luggage_time = MAX_BOOKING_TIME
+
+
+            booking_end_time = compute_booking_end_time(start_time, luggage_time)
+
+            booking = StorageBooking.objects.create(
+                user_booked=user,
+                storage_unit=storage_unit,
+                booking_id=booking_id,
+                booking_type=booking_type,
+                booking_created_time=start_time,
+                booking_end_time=booking_end_time,
+                status='active',
+                is_active=True,
+                storage_booked_location=storage_booked_location,
+                user_remark=user_remark,
+                amount=amount,
+                storage_latitude=latitude,
+                storage_image_url=file_url,
+                storage_longitude=longitude
+            )
+
+            if addons_param:
+                addon_ids = parse_addons_param(addons_param)
+                with transaction.atomic():
+                    for addon_id in addon_ids:
+                        try:
+                            addon_instance = Addon.objects.get(id=addon_id)
+                            addons_booking = BookingAddon.objects.create(
+                            booking=booking,
+                            addon=addon_instance
+                        )
+                        except Exception as e:
+                            return Response({"success": "Fail", "message": str(e)}, status=500) 
+        except Exception as e:
+            return Response({"success": "Fail", "message": str(e)}, status=500)
+
+
         # trigger_notification_to_saathi(bookingid=booking.id)
 
         return Response({
@@ -86,7 +131,9 @@ def create_booking(request):
                 "storage_title": storage_unit.title,
                 "start_time": booking.booking_created_time,
                 "end_time": booking.booking_end_time,
-                "status": booking.status
+                "status": booking.status,
+                'storage_image_url': booking.storage_image_url,
+                "amount": booking.amount,
             }
         }, status=201)
 

@@ -1,8 +1,9 @@
 from django.db import models
 from apps.meta_app.models import MyBaseModel
 from apps.users.models import User
-from apps.storage_units.models import StorageUnit
+from apps.storage_units.models import StorageUnit, Addon
 from apps.saathi.models import Saathi
+import uuid
 
 # Create your models here.
 class StorageBooking(MyBaseModel):
@@ -62,3 +63,23 @@ class BookingFeedback(models.Model):
 
     def __str__(self):
         return f"Rating {self.rating}/5 by {self.user.full_name} for {self.storage_unit.title}"
+
+
+class Counter(models.Model):
+    name = models.CharField(max_length=50, primary_key=True)
+    value = models.BigIntegerField(default=0)
+
+class BookingAddon(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    booking = models.ForeignKey(
+        StorageBooking,  
+        on_delete=models.CASCADE,
+        related_name="booking_addons_id"
+    )
+    addon = models.ForeignKey(
+        Addon,
+        on_delete=models.PROTECT,
+        related_name="booking_addons"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
