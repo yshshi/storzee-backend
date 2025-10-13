@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from .models import User
 from rest_framework import status
-from .models import StorageUnit , Feedback , StorageUnitAddon
+from .models import StorageUnit , Feedback , StorageUnitAddon, StoargeNearbyPlace
 from .utils import haversine,calculate_distance
 from utils.get_city_name import get_city_name_from_coords
 from django.db.models import Q
@@ -344,3 +344,43 @@ def addons_storage_item(request):
         },
         "addons": addons
     }, status=200)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def nearby_storage_list(request):
+    storage_id =  request.query_params.get('storage_id')
+
+    if not storage_id:
+        return Response({
+            "success": False,
+            "message": "Storage Id is required!"
+        }, status=400)
+    
+    try:
+        unit = StorageUnit.objects.filter(id=storage_id).first()
+        if not unit:
+            return Response({ 
+                "success": False,
+                "message": "Storage unit not found!"
+            }, status=404)
+        
+        unit_city_name =  unit.city
+
+        nearby_places = StoargeNearbyPlace.objects.filter(city=unit_city_name)
+        places = []
+        for place in nearby_places:
+            places.append({
+                "place_name": place.place_name,
+                "place_description": place.place_description,
+                "distance_km": place.distance_km
+            })
+
+        return Response({
+            "success": True,
+            "data": places
+        }, status=200)
+    except Exception as e:
+        return Response({
+            "success": False,
+            "message": str(e)
+        }, status=500)

@@ -97,3 +97,11 @@ class StorageUnitAddon(models.Model):
     @property
     def effective_price(self):
         return self.price_override if self.price_override is not None else self.addon.base_price
+    
+class StoargeNearbyPlace(models.Model):
+    city = models.CharField(max_length=100,blank=True,null=True)
+    place_name = models.CharField(max_length=200,blank=True,null=True)
+    place_description = models.TextField(blank=True,null=True)
+    distance_km = models.FloatField(default=0.0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
