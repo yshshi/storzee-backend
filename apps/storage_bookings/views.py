@@ -4,7 +4,7 @@ from rest_framework.decorators import api_view,permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from django.utils import timezone
-from apps.users.models import User
+from apps.users.models import User , UserDocument
 from apps.storage_units.models import StorageUnit
 from apps.storage_bookings.models import StorageBooking , BookingAddon
 from apps.storage_bookings.utils import get_next_bag_id,calculate_distance_km,return_type,return_status,compute_booking_end_time,parse_addons_param
@@ -76,6 +76,10 @@ def create_booking(request):
 
         try:
             user = User.objects.get(id=user_id)
+
+            is_document_verified = UserDocument.objects.filter(user=user).exists()
+            if not is_document_verified:
+                return Response({"success": False, "message": "User documents not available."}, status=400)
             storage_unit = StorageUnit.objects.get(id=storage_unit_id)
 
             booking_id = get_next_bag_id()
