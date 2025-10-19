@@ -584,7 +584,7 @@ def change_status(request):
     status = request.data.get('status')
     storage_instance = StorageBooking.objects.get(id=storage_id)
 
-    if not storage_instance.exists():
+    if not storage_instance:
         return Response({
             "success": False,
             "message": "No luggage found for this ID.",
