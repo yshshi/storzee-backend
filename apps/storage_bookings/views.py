@@ -582,17 +582,17 @@ def booking_status(request):
 def change_status(request):
     storage_id = request.data.get('storage_id')
     status = request.data.get('status')
-    storage_instances = StorageBooking.objects.filter(id=storage_id)
+    storage_instance = StorageBooking.objects.get(id=storage_id)
 
-    if not storage_instances.exists():
+    if not storage_instance.exists():
         return Response({
             "success": False,
             "message": "No luggage found for this ID.",
             "data": []
         }, status=404)
     
-    storage_instances.status=status
-    storage_instances.save()
+    storage_instance.status = status
+    storage_instance.save(update_fields=['status'])
 
     return Response({
         "success": True,
