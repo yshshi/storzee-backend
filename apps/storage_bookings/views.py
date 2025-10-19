@@ -550,3 +550,50 @@ def booking_details(request):
         "message": "Luggage Found!",
         "data": data
     }, status=200)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def booking_status(request):
+    storage_id = request.query_params.get('storage_id')  # Get from URL params
+    storage_instances = StorageBooking.objects.filter(id=storage_id)
+
+    if not storage_instances.exists():
+        return Response({
+            "success": False,
+            "message": "No luggage found for this ID.",
+            "data": []
+        }, status=404)
+    
+    data = []
+    for s in storage_instances:
+        data.append({
+            "id": str(s.id),
+            "status": s.status,
+        })
+        
+    return Response({
+        "success": True,
+        "message": "Luggage Found!",
+        "data": data})
+
+@api_view(['PATCH'])
+@permission_classes([AllowAny])
+def change_status(request):
+    storage_id = request.data.get('storage_id')
+    status = request.data.get('status')
+    storage_instances = StorageBooking.objects.filter(id=storage_id)
+
+    if not storage_instances.exists():
+        return Response({
+            "success": False,
+            "message": "No luggage found for this ID.",
+            "data": []
+        }, status=404)
+    
+    storage_instances.status=status
+    storage_instances.save()
+
+    return Response({
+        "success": True,
+        "message": "Status Updated Successfully!"})
