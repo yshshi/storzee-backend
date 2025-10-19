@@ -98,7 +98,7 @@ def create_booking(request):
                 booking_type=booking_type,
                 booking_created_time=start_time,
                 booking_end_time=booking_end_time,
-                status='active',
+                status='confirmed',
                 is_active=True,
                 storage_booked_location=storage_booked_location,
                 user_remark=user_remark,
