@@ -196,6 +196,8 @@ from apps.wallet.models import UserWallet  # if you have this model, else remove
 env = environ.Env()
 environ.Env.read_env()
 from apps.payment.utils import generate_receipt_number
+from django.views.decorators.csrf import csrf_exempt
+
 
 # Initialize Razorpay client
 RZP_CLIENT = razorpay.Client(auth=(
@@ -385,7 +387,7 @@ def hosted_checkout(request, payment_id):
     # render template 'payments/razorpay_hosted_checkout.html'
     return render(request, "payments/razorpay_hosted_checkout.html", context)
 
-
+@csrf_exempt
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def verify_return_payment(request):

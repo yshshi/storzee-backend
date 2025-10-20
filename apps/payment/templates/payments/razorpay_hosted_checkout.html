@@ -1,4 +1,4 @@
-<!doctype html>
+<!-- <!doctype html>
 <html>
 <head>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
@@ -110,6 +110,66 @@
     console.error('Failed to initialize Razorpay checkout', err);
     document.body.innerHTML = "<h3>Checkout initialization failed. See console for details.</h3><pre>" + String(err) + "</pre>";
   }
+</script>
+</body>
+</html> -->
+
+<!doctype html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Checkout</title>
+</head>
+<body>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+const key_id = "{{ key_id|escapejs }}";
+const order_id = "{{ order_id|escapejs }}";
+const payment_db_id = "{{ payment_db_id|escapejs }}";
+const verifyUrl = "{{ request.build_absolute_uri:'/api/payment/verify_return_payment/' }}";
+
+const options = {
+  key: key_id,
+  order_id: order_id,
+  handler: function (resp) {
+    const payload = {
+      razorpay_order_id: resp.razorpay_order_id,
+      razorpay_payment_id: resp.razorpay_payment_id,
+      razorpay_signature: resp.razorpay_signature,
+      payment_db_id: payment_db_id
+    };
+
+    // verify server-side after Razorpay completes
+    fetch(verifyUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "include"
+    })
+    .then(r => r.text())
+    .then(t => {
+      document.body.innerHTML = `<h3>Payment verified.</h3><pre>${t}</pre>`;
+    })
+    .catch(e => {
+      console.error(e);
+      document.body.innerHTML = "<h3>Verify failed.</h3>";
+    });
+  },
+  modal: {
+    ondismiss: function () {
+      console.log("User dismissed Razorpay popup");
+    }
+  }
+};
+
+window.onload = function () {
+  try {
+    const rzp = new Razorpay(options);
+    rzp.open();
+  } catch (e) {
+    console.error("Error opening checkout", e);
+  }
+};
 </script>
 </body>
 </html>
