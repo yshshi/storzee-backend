@@ -23,7 +23,7 @@ urlpatterns = [
     path('api/stroage/', include('apps.storage_units.urls')),
     path('api/stroage_booking/', include('apps.storage_bookings.urls')),
     path('api/saathi/', include('apps.saathi.urls')),
-    path('api/payment/', include('apps.payment.urls')),
+    path('api/payment/', include(('apps.payment.urls', 'payment'), namespace='payment')),
     path('api/wallet/', include('apps.wallet.urls')),
     path('api/assist/', include('apps.assist.urls')),
     # path('api/booking/', include('apps.storage_bookings.urls'))

@@ -1,0 +1,115 @@
+<!doctype html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Checkout</title>
+</head>
+<body>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+  // Global error hook for quick debugging
+  window.addEventListener('error', function(ev){
+    console.error('window.error:', ev.message, ev.filename, ev.lineno, ev.colno, ev.error);
+  });
+  window.addEventListener('unhandledrejection', function(ev){
+    console.error('unhandledrejection:', ev.reason);
+  });
+
+  // Build options (server injected)
+  const options = {
+    key: "{{ key_id }}",
+    order_id: "{{ order_id }}",
+    handler: function (resp){
+      console.log('Razorpay handler called', resp);
+      const payload = {
+        razorpay_order_id: resp.razorpay_order_id,
+        razorpay_payment_id: resp.razorpay_payment_id,
+        razorpay_signature: resp.razorpay_signature,
+        payment_db_id: "{{ payment_db_id }}"
+      };
+
+      // Try postMessage for RN
+      try {
+        if (window.ReactNativeWebView && typeof window.ReactNativeWebView.postMessage === 'function') {
+          console.log('Posting message to ReactNativeWebView', payload);
+          window.ReactNativeWebView.postMessage(JSON.stringify({ event: 'success', ...payload }));
+        } else {
+          console.log('ReactNativeWebView not available, falling back to server verify');
+        }
+      } catch (e) {
+        console.error('postMessage error:', e);
+      }
+
+      // Always attempt server-side verification (helps debug origin/CORS issues)
+      (function verifyOnServer(){
+        const verifyUrl = "/api/payment/verify_return_payment/"; // ensure this matches your urls
+        console.log('Posting to verify endpoint:', verifyUrl, payload);
+        fetch(verifyUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          credentials: 'same-origin'
+        })
+        .then(async (res) => {
+          const text = await res.text();
+          console.log('verify response status:', res.status, 'body:', text);
+          if (!res.ok) {
+            console.error('verify returned non-OK', res.status);
+            document.body.innerHTML = "<h3>Payment processed but verification failed. Check server logs.</h3><pre>" + res.status + " - " + text + "</pre>";
+            return;
+          }
+          try {
+            const json = JSON.parse(text);
+            console.log('verify parsed json:', json);
+            document.body.innerHTML = "<h3>Payment successful. You may close this window.</h3>";
+          } catch (parseErr) {
+            console.warn('verify response not JSON', parseErr);
+            document.body.innerHTML = "<h3>Payment processed. Verification response non-JSON. Check server logs.</h3><pre>" + text + "</pre>";
+          }
+        })
+        .catch((err) => {
+          console.error('fetch to verify endpoint failed:', err);
+          document.body.innerHTML = "<h3>Payment processed but verify request failed. Check network and server.</h3><pre>" + String(err) + "</pre>";
+        });
+      })();
+    },
+    modal: {
+      ondismiss: function(){
+        console.log('Razorpay modal dismissed by user');
+        try {
+          window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({ event: 'dismiss' }));
+        } catch(e){ console.error('postMessage dismiss error', e); }
+      }
+    }
+  };
+
+  console.log('Razorpay options', options);
+
+  // Create checkout instance and attach failure listener if supported
+  try {
+    const rzp = new Razorpay(options);
+
+    // Some builds support an event for payment failure. Add defensive listener.
+    try {
+      rzp.on && rzp.on('payment.failed', function(response){
+        console.error('payment.failed event:', response);
+        // forward to RN if available
+        try { window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({ event:'failed', detail: response })); } catch(e) {}
+        // show failure UI
+        document.body.innerHTML = "<h3>Payment failed. See console for details.</h3><pre>" + JSON.stringify(response, null, 2) + "</pre>";
+      });
+    } catch(e) {
+      console.warn('rzp.on attach failed:', e);
+    }
+
+    window.onload = function(){
+      console.log('Opening Razorpay checkout');
+      rzp.open();
+    };
+  } catch (err) {
+    console.error('Failed to initialize Razorpay checkout', err);
+    document.body.innerHTML = "<h3>Checkout initialization failed. See console for details.</h3><pre>" + String(err) + "</pre>";
+  }
+</script>
+</body>
+</html>

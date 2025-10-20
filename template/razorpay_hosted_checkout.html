@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Checkout</title>
+</head>
+<body>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+  const options = {
+    key: "{{ key_id }}",
+    order_id: "{{ order_id }}",
+    handler: function (resp){
+      // For RN: send to RN via postMessage
+      if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          event: 'success',
+          razorpay_order_id: resp.razorpay_order_id,
+          razorpay_payment_id: resp.razorpay_payment_id,
+          razorpay_signature: resp.razorpay_signature,
+          payment_db_id: "{{ payment_db_id }}"
+        }));
+      } else {
+        // fallback: POST to verify endpoint (relative URL)
+        fetch("/payments/verify-return-payment/", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            razorpay_order_id: resp.razorpay_order_id,
+            razorpay_payment_id: resp.razorpay_payment_id,
+            razorpay_signature: resp.razorpay_signature,
+            payment_db_id: "{{ payment_db_id }}"
+          })
+        }).then(()=> {
+          document.body.innerHTML = "<h3>Payment successful. You may close this window.</h3>"
+        })
+      }
+    },
+    modal: {
+      ondismiss: function(){
+        if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({ event: 'dismiss' }));
+        }
+      }
+    }
+  };
+  const rzp = new Razorpay(options);
+  window.onload = function(){ rzp.open(); }
+</script>
+</body>
+</html>

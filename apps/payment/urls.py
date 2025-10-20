@@ -1,14 +1,15 @@
 from django.urls import path, re_path
 from rest_framework.routers import DefaultRouter
-from .views import *
+from . import views
 router = DefaultRouter(trailing_slash=False)
 
+app_name = "payment" 
 
 urlpatterns = [
     
-    re_path(r'^calculate_return_payment', calculate_return_payment, name='calculate_return_payment'),
-    re_path(r'^initiate_return_payment', initiate_return_payment, name='initiate_return_payment'),
-    re_path(r'^razor_payment_confirm', razor_payment_confirm, name='razor_payment_confirm'),
+    path('initiate_return_payment/', views.initiate_return_payment, name='initiate_return_payment'),
+    path('hosted_checkout/<int:payment_id>/', views.hosted_checkout, name='hosted_checkout'),
+    path('verify_return_payment/', views.verify_return_payment, name='verify_return_payment'),
 
 
 
