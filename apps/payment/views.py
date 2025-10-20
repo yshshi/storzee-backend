@@ -377,12 +377,15 @@ def hosted_checkout(request, payment_id):
     payment = get_object_or_404(Payment, id=payment_id)
     if not payment.razorpay_order_id:
         return HttpResponse("Missing razorpay order id for this payment", status=400)
+    
+    verify_url = request.build_absolute_uri(reverse('payment:verify_return_payment'))
 
     context = {
         "key_id": env("RAZORPAY_ID"),
         "order_id": payment.razorpay_order_id,
         "payment_db_id": payment.id,
-        "amount": str(payment.amount)  # optional
+        "amount": str(payment.amount),
+        "verify_url": verify_url,
     }
     # render template 'payments/razorpay_hosted_checkout.html'
     return render(request, "payments/razorpay_hosted_checkout.html", context)
