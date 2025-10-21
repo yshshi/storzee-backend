@@ -1,0 +1,491 @@
+<!-- <!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Storezee Payment</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <style>
+    :root {
+      --primary: #0078ff;
+      --danger: #dc3545;
+      --success: #28a745;
+    }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 2rem;
+      background: #f7f9fb;
+    }
+    h2 {
+      color: #222;
+      margin-bottom: 0.5rem;
+    }
+    .box {
+      background: #fff;
+      max-width: 400px;
+      margin: 2rem auto;
+      padding: 2rem 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    #payBtn {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      padding: 12px 24px;
+      font-size: 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+    #payBtn:hover { opacity: 0.9; }
+    #msg {
+      margin-top: 1rem;
+      font-size: 14px;
+      color: #555;
+    }
+    #timer {
+      margin-top: 1rem;
+      font-weight: 600;
+      color: var(--danger);
+      font-size: 15px;
+    }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2>Storezee Return Payment</h2>
+    <p>Complete your payment within the time limit below.</p>
+    <button id="payBtn">Pay Now</button>
+    <div id="msg"></div>
+    <div id="timer"></div>
+  </div>
+
+  <script>
+window.onload = function () {
+  const params = new URLSearchParams(window.location.search);
+  const PAYMENT_ID = params.get("payment_id");
+  const ORDER_ID   = params.get("order_id");
+  const AMOUNT     = params.get("amount");
+  const RZP_KEY    = "rzp_test_kTUWGKnL9ZeEsz";
+  const API_BASE   = "https://api-dev.thestorezee.com/api/payment";
+  const RETURN_URL = "storezee://payment-result";
+  const EXPIRY_MIN = 5;
+
+  if (!PAYMENT_ID || !ORDER_ID || !AMOUNT) {
+    document.body.innerHTML = "<h3>Invalid or expired payment link</h3>";
+    throw new Error("Missing required payment parameters");
+  }
+
+  const msgEl = document.getElementById("msg");
+  const timerEl = document.getElementById("timer");
+
+  // --- TIMER ---
+  let deadline = Date.now() + EXPIRY_MIN * 60 * 1000;
+  (function tick() {
+    const rem = Math.max(0, deadline - Date.now());
+    const mins = Math.floor(rem / 60000);
+    const secs = Math.floor((rem % 60000) / 1000);
+    timerEl.textContent = `Time left: ${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    if (rem <= 0) {
+      msgEl.innerText = "Session expired.";
+      document.getElementById("payBtn").disabled = true;
+      setTimeout(() => location.href = `${RETURN_URL}?status=expired`, 1500);
+      return;
+    }
+    setTimeout(tick, 1000);
+  })();
+
+  // --- RAZORPAY ---
+  async function openRazorpay(orderId, paymentDbId, amountRupees) {
+    if (typeof Razorpay === 'undefined') {
+      msgEl.innerText = "Razorpay SDK failed to load.";
+      return;
+    }
+    const options = {
+      key: RZP_KEY,
+      order_id: orderId,
+      name: "Storezee",
+      description: "Return payment",
+      amount: parseFloat(amountRupees) * 100,
+      theme: { color: "#0078ff" },
+      handler: async function (response) {
+        msgEl.innerText = "Verifying payment...";
+        try {
+          await fetch(`${API_BASE}/verify_return_payment/`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              payment_db_id: paymentDbId
+            })
+          });
+        } catch (e) {
+          console.error(e);
+        }
+        msgEl.innerText = "Payment successful!";
+        setTimeout(() => {
+          location.href = `${RETURN_URL}?status=success&payment_id=${paymentDbId}`;
+        }, 800);
+      },
+      modal: {
+        ondismiss: function () {
+          msgEl.innerText = "Payment cancelled.";
+          setTimeout(() => {
+            location.href = `${RETURN_URL}?status=cancel`;
+          }, 800);
+        }
+      }
+    };
+    const rzp = new Razorpay(options);
+    rzp.open();
+  }
+
+  document.getElementById("payBtn").onclick = () => openRazorpay(ORDER_ID, PAYMENT_ID, AMOUNT);
+  msgEl.innerText = "Opening payment window...";
+  openRazorpay(ORDER_ID, PAYMENT_ID, AMOUNT);
+};
+</script>
+
+</body>
+</html> -->
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Storezee Payment</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  
+  <style>
+    :root {
+      --primary: #0078ff;
+      --primary-dark: #0056b3;
+      --danger: #dc3545;
+      --danger-light-bg: #fef5f5;
+      --danger-light-border: #fde8e8;
+      --success: #28a745;
+      --grey-light: #f7f9fb;
+      --grey-dark: #6b7280;
+      --grey-border: #e5e7eb;
+      --text-dark: #1f2937;
+      --text-light: #4b5563;
+    }
+
+    /* Basic Reset & Body Styling */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 2rem 1rem; /* Added padding for small screens */
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      color: var(--text-light);
+    }
+
+    /* The Main Payment Card */
+    .payment-card {
+      background: #fff;
+      max-width: 420px;
+      width: 100%;
+      margin: 1rem auto;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.07);
+      overflow: hidden; /* To contain the border-radius */
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    /* Card Header */
+    .card-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--grey-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+    }
+
+    .logo-icon {
+      width: 28px;
+      height: 28px;
+      stroke: var(--primary);
+      stroke-width: 2;
+    }
+
+    .logo-text {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-dark);
+    }
+
+    /* Card Body */
+    .card-body {
+      padding: 2rem;
+    }
+
+    .card-body h2 {
+      font-size: 1.5rem;
+      color: var(--text-dark);
+      margin-bottom: 0.75rem;
+    }
+
+    .card-body p {
+      font-size: 1rem;
+      color: var(--text-light);
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+
+    /* Timer Box - This is where your #timer goes */
+    .timer-box {
+      background: var(--danger-light-bg);
+      border: 1px solid var(--danger-light-border);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .timer-icon {
+      width: 20px;
+      height: 20px;
+      stroke: var(--danger);
+      stroke-width: 2.5;
+    }
+    
+    /* Your original #timer element */
+    #timer {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--danger);
+      font-family: monospace; /* Gives it a "digital" feel */
+    }
+
+    /* Your original #msg element */
+    #msg {
+      margin-top: 1.5rem;
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+      color: var(--grey-dark);
+      min-height: 1.2em; /* Prevents layout jump */
+      transition: color 0.3s ease;
+    }
+
+    /* Your original #payBtn element */
+    #payBtn {
+      width: 100%;
+      background: var(--primary);
+      background-image: linear-gradient(90deg, var(--primary), var(--primary-dark));
+      color: #fff;
+      border: none;
+      padding: 15px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0, 120, 255, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+    }
+
+    .lock-icon {
+      width: 18px;
+      height: 18px;
+      stroke: #fff;
+      stroke-width: 2.5;
+    }
+
+    #payBtn:not(:disabled):hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 15px rgba(0, 120, 255, 0.3);
+    }
+
+    #payBtn:disabled {
+      background: #ccc;
+      background-image: none;
+      cursor: not-allowed;
+      box-shadow: none;
+      opacity: 0.7;
+    }
+
+    /* Card Footer */
+    .card-footer {
+      background: var(--grey-light);
+      padding: 1.25rem 1.5rem;
+      border-top: 1px solid var(--grey-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      font-size: 0.8rem;
+      color: var(--grey-dark);
+    }
+    
+    .razorpay-logo {
+      height: 16px;
+      opacity: 0.8;
+    }
+
+    /* Simple responsive tweaks */
+    @media (max-width: 480px) {
+      body {
+        padding: 1rem;
+      }
+      .payment-card {
+        border-radius: 12px;
+      }
+      .card-body {
+        padding: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="payment-card">
+    
+    <div class="card-header">
+      <svg class="logo-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+      </svg>
+      <span class="logo-text">Storezee</span>
+    </div>
+
+    <div class="card-body">
+      <h2>Storezee Return Payment</h2>
+      <p>Please complete your payment within the time limit. The payment window will open automatically.</p>
+      
+      <div class="timer-box">
+        <svg class="timer-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <div id="timer">Loading...</div>
+      </div>
+      
+      <button id="payBtn">
+        <svg class="lock-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+        Pay Now
+      </button>
+
+      <div id="msg"></div>
+    </div>
+
+    <div class="card-footer">
+      <span>Secured by</span>
+      <img class="razorpay-logo" src="https://razorpay.com/assets/images/logo-black.svg" alt="Razorpay">
+    </div>
+
+  </div>
+
+  <script>
+window.onload = function () {
+  const params = new URLSearchParams(window.location.search);
+  const PAYMENT_ID = params.get("payment_id");
+  const ORDER_ID   = params.get("order_id");
+  const AMOUNT     = params.get("amount");
+  const RZP_KEY    = "rzp_test_kTUWGKnL9ZeEsz";
+  const API_BASE   = "https://api-dev.thestorezee.com/api/payment";
+  const RETURN_URL = "storezee://payment-result";
+  const EXPIRY_MIN = 5;
+
+  if (!PAYMENT_ID || !ORDER_ID || !AMOUNT) {
+    document.body.innerHTML = "<h3>Invalid or expired payment link</h3>";
+    throw new Error("Missing required payment parameters");
+  }
+
+  const msgEl = document.getElementById("msg");
+  const timerEl = document.getElementById("timer");
+
+  // --- TIMER ---
+  let deadline = Date.now() + EXPIRY_MIN * 60 * 1000;
+  (function tick() {
+    const rem = Math.max(0, deadline - Date.now());
+    const mins = Math.floor(rem / 60000);
+    const secs = Math.floor((rem % 60000) / 1000);
+    timerEl.textContent = `Time left: ${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    if (rem <= 0) {
+      msgEl.innerText = "Session expired.";
+      document.getElementById("payBtn").disabled = true;
+      setTimeout(() => location.href = `${RETURN_URL}?status=expired`, 1500);
+      return;
+    }
+    setTimeout(tick, 1000);
+  })();
+
+  // --- RAZORPAY ---
+  async function openRazorpay(orderId, paymentDbId, amountRupees) {
+    if (typeof Razorpay === 'undefined') {
+      msgEl.innerText = "Razorpay SDK failed to load.";
+      return;
+    }
+    const options = {
+      key: RZP_KEY,
+      order_id: orderId,
+      name: "Storezee",
+      description: "Return payment",
+      amount: parseFloat(amountRupees) * 100,
+      theme: { color: "#0078ff" },
+      handler: async function (response) {
+        msgEl.innerText = "Verifying payment...";
+        try {
+          await fetch(`${API_BASE}/verify_return_payment/`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              payment_db_id: paymentDbId
+            })
+          });
+        } catch (e) {
+          console.error(e);
+        }
+        msgEl.innerText = "Payment successful!";
+        setTimeout(() => {
+          location.href = `${RETURN_URL}?status=success&payment_id=${paymentDbId}`;
+        }, 800);
+      },
+      modal: {
+        ondismiss: function () {
+          msgEl.innerText = "Payment cancelled.";
+          setTimeout(() => {
+            location.href = `${RETURN_URL}?status=cancel`;
+          }, 800);
+        }
+      }
+    };
+    const rzp = new Razorpay(options);
+    rzp.open();
+  }
+
+  document.getElementById("payBtn").onclick = () => openRazorpay(ORDER_ID, PAYMENT_ID, AMOUNT);
+  msgEl.innerText = "Opening payment window...";
+  openRazorpay(ORDER_ID, PAYMENT_ID, AMOUNT);
+};
+  </script>
+
+</body>
+</html>

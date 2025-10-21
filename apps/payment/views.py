@@ -353,13 +353,19 @@ def initiate_return_payment(request):
                 razorpay_order_id=rzp_order.get("id"),
                 raw_response_from_razorpay=json.dumps(rzp_order.get("raw")),
             )
-            hosted_url = request.build_absolute_uri(reverse('payment:hosted_checkout', args=[payment.id]))
+            # hosted_url = request.build_absolute_uri(reverse('payment:hosted_checkout', args=[payment.id]))
+            frontend_payment_url = (
+                f"http://127.0.0.1:5500/utils/pay.html?"
+                f"payment_id={payment.id}"
+                f"&order_id={payment.razorpay_order_id}"
+                f"&amount={payment.amount}"
+            )
             return Response({
                 'status': status.HTTP_200_OK,
                 'message': 'Payment Order Created Successfully',
                 'payment_id': payment.id,
                 'razorpay_order': rzp_order,
-                'hosted_checkout_url': hosted_url
+                'frontend_payment_url': frontend_payment_url
             })
         except ValidationError as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
