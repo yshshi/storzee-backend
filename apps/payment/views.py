@@ -355,7 +355,7 @@ def initiate_return_payment(request):
             )
             # hosted_url = request.build_absolute_uri(reverse('payment:hosted_checkout', args=[payment.id]))
             frontend_payment_url = (
-                f"http://127.0.0.1:5500/utils/pay.html?"
+                f"https://api-dev.thestorezee.com/utils/pay.html?"
                 f"payment_id={payment.id}"
                 f"&order_id={payment.razorpay_order_id}"
                 f"&amount={payment.amount}"
