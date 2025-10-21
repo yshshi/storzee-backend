@@ -21,6 +21,7 @@ def register_token(request):
     return Response({'error': 'No token provided'}, status=400)
 
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def send_notification(request):
     title = request.data.get('title')
     body = request.data.get('body')
