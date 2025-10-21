@@ -346,6 +346,12 @@ window.onload = function () {
       opacity: 0.8;
     }
 
+    .logo-icon {
+  width: 54px;  /* Adjust this value */
+  height: 54px; /* Adjust this value */
+  /* The stroke properties won't apply to an img, so they'll be ignored */
+}
+
     /* Simple responsive tweaks */
     @media (max-width: 480px) {
       body {
@@ -365,9 +371,10 @@ window.onload = function () {
   <div class="payment-card">
     
     <div class="card-header">
-      <svg class="logo-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <!-- <svg class="logo-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-      </svg>
+      </svg> -->
+      <img src="../assets/images/storezee_logo.png" alt="Storezee Logo" class="logo-icon">
       <span class="logo-text">Storezee</span>
     </div>
 
@@ -394,7 +401,9 @@ window.onload = function () {
 
     <div class="card-footer">
       <span>Secured by</span>
-      <img class="razorpay-logo" src="https://razorpay.com/assets/images/logo-black.svg" alt="Razorpay">
+      <!-- <img class="logo-icon" src='../assets/images/storezee_logo.png' alt="Razorpay"> -->
+      <img class="logo-icon" src='https://upload.wikimedia.org/wikipedia/commons/8/89/Razorpay_logo.svg' alt="Razorpay">
+      <!-- <span>Storezee Network</span> -->
     </div>
 
   </div>
