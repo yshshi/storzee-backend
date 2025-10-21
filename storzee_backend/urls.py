@@ -26,6 +26,7 @@ urlpatterns = [
     path('api/payment/', include(('apps.payment.urls', 'payment'), namespace='payment')),
     path('api/wallet/', include('apps.wallet.urls')),
     path('api/assist/', include('apps.assist.urls')),
+    path('api/notification/', include('apps.notification.urls')),
     # path('api/booking/', include('apps.storage_bookings.urls'))
 ]
 
