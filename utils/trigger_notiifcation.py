@@ -110,6 +110,9 @@ def send_push_notification_to_user_for_delivery_arrived(saathi_id, user_id, stat
     return {"success": True, "message": f"Notification sent to {len(device_tokens)} devices."}
 
 def send_push_notification(token, title, body):
+    if not token.startswith("ExponentPushToken["):
+        token = f"ExponentPushToken[{token}]"
+
     message = {
         'to': token,
         'sound': 'default',
@@ -117,8 +120,7 @@ def send_push_notification(token, title, body):
         'body': body,
         'priority': 'high',
     }
-    response = requests.post(
-        'https://exp.host/--/api/v2/push/send',
-        json=message
-    )
+
+    response = requests.post('https://exp.host/--/api/v2/push/send', json=message)
+    print(response.text)
     return response.json()
