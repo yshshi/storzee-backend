@@ -43,7 +43,8 @@ INSTALLED_APPS = [
     'apps.saathi',
     'apps.wallet',
     'apps.payment',
-    'apps.assist'
+    'apps.assist',
+    'apps.notification'
 ]
 
 MIDDLEWARE = [
