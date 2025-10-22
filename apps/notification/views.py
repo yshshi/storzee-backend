@@ -10,13 +10,18 @@ from utils.trigger_notiifcation import send_push_notification
 def register_token(request):
     token = request.data.get('token')
     user_id = request.data.get('user_id')
-    platform = request.data.get('platform')
+    platform = request.data.get('platform','')
 
-    
+    register_device = UserDeviceToken.objects.filter(user_id=user_id).first()
+    if register_device:
+        register_device.token = token
+        register_device.device = platform
+        register_device.save()
+        return Response({'message': 'Token updated successfully'})
     if token:
         UserDeviceToken.objects.create(token=token,
                                        user_id=user_id,
-                                       platform=platform)
+                                       device=platform)
         return Response({'message': 'Token registered successfully'})
     return Response({'error': 'No token provided'}, status=400)
 
