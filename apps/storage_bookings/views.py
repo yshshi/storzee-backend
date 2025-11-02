@@ -522,7 +522,7 @@ def validate_delivery(request):
 @permission_classes([AllowAny])
 def booking_details(request):
     user_id = request.query_params.get('user_id')  # Get from URL params
-    storage_instances = StorageBooking.objects.filter(user_booked=user_id)
+    storage_instances = StorageBooking.objects.filter(user_booked=user_id).order_by('-created_at')
 
     if not storage_instances.exists():
         return Response({
