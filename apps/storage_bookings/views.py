@@ -607,7 +607,7 @@ def change_status(request):
 @permission_classes([AllowAny])
 def change_amount(request):
     storage_id = request.data.get('storage_id')
-    amount = request.data.get('anount')
+    amount = request.data.get('amount')
     updatedby = request.data.get('updatedby')
     storage_instance = StorageBooking.objects.get(id=storage_id)
 
