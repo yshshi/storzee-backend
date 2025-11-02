@@ -1,6 +1,6 @@
 from django.urls import path, re_path
 from rest_framework.routers import DefaultRouter
-from .views import create_booking,update_luggage_deatils,update_luggage_location_by_saathi,get_luggage_deatils,validate_pickup,submit_to_rakshak,request_return,booking_details,booking_status,change_status
+from .views import create_booking,update_luggage_deatils,update_luggage_location_by_saathi,get_luggage_deatils,validate_pickup,submit_to_rakshak,request_return,booking_details,booking_status,change_status,get_all_bookings,change_amount
 router = DefaultRouter(trailing_slash=False)
 
 
@@ -16,6 +16,8 @@ urlpatterns = [
     re_path(r'^booking_details', booking_details, name='booking_details'),
     re_path(r'^booking_status', booking_status, name='booking_status'),
     re_path(r'^change_status', change_status, name='change_status'),
+    re_path(r'^get_all_bookings', get_all_bookings, name='get_all_bookings'),
+    re_path(r'^change_amount', change_amount, name='change_amount'),
 
     *router.urls
 ] 

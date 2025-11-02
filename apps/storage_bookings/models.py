@@ -46,6 +46,8 @@ class StorageBooking(MyBaseModel):
     return_address = models.TextField(null=True, blank=True)
     return_preferred_time = models.DateTimeField(null=True, blank=True)
     return_estimated_amount = models.PositiveIntegerField(null=True, blank=True)
+    last_updated_by = models.CharField(max_length=100, blank=True, null=True)
+    amount_updated_by = models.CharField(max_length=100, blank=True, null=True)
 
     def __str__(self):
         return f"{self.user.full_name} → {self.storage_unit.title} [{self.status}]"

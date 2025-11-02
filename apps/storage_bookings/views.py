@@ -23,6 +23,7 @@ from django.core.files.storage import default_storage
 from rest_framework import status
 import os
 from django.db import transaction
+from django.db.models import Prefetch
 
 MAX_BOOKING_TIME = os.getenv('MAX_BOOKING_TIME')
 # Create your views here.
@@ -582,7 +583,10 @@ def booking_status(request):
 def change_status(request):
     storage_id = request.data.get('storage_id')
     status = request.data.get('status')
+    updatedby = request.data.get('updatedby')
     storage_instance = StorageBooking.objects.get(id=storage_id)
+
+    updatedby_instance = Saathi.objects.filter(id=updatedby).first()
 
     if not storage_instance:
         return Response({
@@ -592,8 +596,101 @@ def change_status(request):
         }, status=404)
     
     storage_instance.status = status
-    storage_instance.save(update_fields=['status'])
+    storage_instance.last_updated_by = updatedby_instance.full_name if updatedby_instance else None
+    storage_instance.save(update_fields=['amount', 'last_updated_by'])
 
     return Response({
         "success": True,
         "message": "Status Updated Successfully!"})
+
+@api_view(['PATCH'])
+@permission_classes([AllowAny])
+def change_amount(request):
+    storage_id = request.data.get('storage_id')
+    amount = request.data.get('anount')
+    updatedby = request.data.get('updatedby')
+    storage_instance = StorageBooking.objects.get(id=storage_id)
+
+    updatedby_instance = Saathi.objects.filter(id=updatedby).first()
+
+    if not storage_instance:
+        return Response({
+            "success": False,
+            "message": "No luggage found for this ID.",
+            "data": []
+        }, status=404)
+    
+    storage_instance.amount = amount
+    storage_instance.amount_updated_by = updatedby_instance.full_name if updatedby_instance else None
+    storage_instance.save(update_fields=['amount', 'amount_updated_by'])
+
+    return Response({
+        "success": True,
+        "message": "Amount Updated Successfully!"})
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_all_bookings(request):
+    booking_id = request.GET.get('booking_id')
+
+    # Optimized query: one-shot load of related data
+    queryset = (
+        StorageBooking.objects.select_related(
+            'user_booked', 'storage_unit', 'assigned_saathi', 'luggage_rakshak'
+        )
+        .prefetch_related(
+            Prefetch(
+                'user_booked__user_documents',
+                queryset=UserDocument.objects.only('id', 'original_name', 'imghippo_url', 'created_at')
+            )
+        )
+        .order_by('-id')
+    )
+
+    if booking_id:
+        queryset = queryset.filter(booking_id__icontains=booking_id)
+
+    data = []
+    for booking in queryset:
+        user = booking.user_booked
+        user_docs = user.user_documents.all() if hasattr(user, 'user_documents') else []
+
+        data.append({
+            "id": booking.id,
+            "booking_id": booking.booking_id,
+            "status": booking.status,
+            "booking_type": booking.booking_type,
+            "booking_created_time": booking.booking_created_time,
+            "booking_end_time": booking.booking_end_time,
+            "amount": booking.amount,
+            "storage_booked_location": booking.storage_booked_location,
+            "storage_unit": booking.storage_unit.title if booking.storage_unit else None,
+            "assigned_saathi": getattr(booking.assigned_saathi, "name", None),
+            'luggage_image': booking.storage_image_url if booking.storage_image_url else None,
+            "updated_by": booking.last_updated_by if booking.last_updated_by else None,
+            "amount_updated_by": booking.amount_updated_by if booking.amount_updated_by else None,
+            "user_booked": {
+                "id": user.id,
+                "full_name": user.full_name,
+                "email": user.email,
+                "phone": user.phone,
+                "role": user.role,
+                "city_name": user.city_name,
+                "profile_picture": user.profile_picture,
+                "latitude": user.latitude,
+                "longitude": user.longitude,
+                "documents": [
+                    {
+                        "id": doc.id,
+                        "original_name": doc.original_name,
+                        "imghippo_url": doc.imghippo_url,
+                        "created_at": doc.created_at,
+                    } for doc in user_docs
+                ]
+            }
+        })
+
+    return Response({
+        "success": True,
+        "message": "Luggage List Returned successfully!",
+        "data": data})
