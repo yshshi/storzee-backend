@@ -424,7 +424,9 @@ def user_details(request):
         'email': user.email,
         'phone': user.phone,
         'profile_picture': user.profile_picture,
-        'documents': documents_list
+        'documents': documents_list if documents_list else [],
+        'longitude': user.longitude if user.longitude else None,
+        'latitude': user.latitude if user.latitude else None
     }
     return Response({
         "success": "Success",
