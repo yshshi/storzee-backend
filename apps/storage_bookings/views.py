@@ -644,7 +644,7 @@ def get_all_bookings(request):
                 queryset=UserDocument.objects.only('id', 'original_name', 'imghippo_url', 'created_at')
             )
         )
-        .order_by('-id')
+        .order_by('-created_at')
     )
 
     if booking_id:
