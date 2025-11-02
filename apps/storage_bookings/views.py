@@ -544,6 +544,8 @@ def booking_details(request):
             "price": s.amount,
             "status": return_status(s.status),
             "bookingNumber": s.booking_id,
+            "latitude": s.storage_latitude,
+            "longitude": s.storage_longitude,
         })
 
     return Response({
