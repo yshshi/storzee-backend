@@ -24,6 +24,8 @@ from rest_framework import status
 import os
 from django.db import transaction
 from django.db.models import Prefetch
+from decimal import Decimal
+from apps.payment.models import Payment
 
 MAX_BOOKING_TIME = os.getenv('MAX_BOOKING_TIME')
 # Create your views here.
@@ -92,6 +94,12 @@ def create_booking(request):
 
             booking_end_time = compute_booking_end_time(start_time, luggage_time)
 
+            diff = booking_end_time - start_time
+            total_hours = diff.total_seconds() / 3600
+
+            total_amount = Decimal(storage_unit.price_per_hour) * Decimal(total_hours)
+            total_amount = round(total_amount)
+
             booking = StorageBooking.objects.create(
                 user_booked=user,
                 storage_unit=storage_unit,
@@ -103,7 +111,7 @@ def create_booking(request):
                 is_active=True,
                 storage_booked_location=storage_booked_location,
                 user_remark=user_remark,
-                amount=amount,
+                amount=total_amount,
                 storage_latitude=latitude,
                 storage_image_url=file_url,
                 storage_longitude=longitude
@@ -625,6 +633,11 @@ def change_amount(request):
     storage_instance.amount = amount
     storage_instance.amount_updated_by = updatedby_instance.full_name if updatedby_instance else None
     storage_instance.save(update_fields=['amount', 'amount_updated_by'])
+
+    paymentInstance = Payment.objects.filter(booking=storage_instance).first()
+    if paymentInstance:
+        paymentInstance.amount = amount
+        paymentInstance.save(update_fields=['amount'])
 
     return Response({
         "success": True,

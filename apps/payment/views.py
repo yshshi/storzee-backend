@@ -197,6 +197,7 @@ env = environ.Env()
 environ.Env.read_env()
 from apps.payment.utils import generate_receipt_number
 from django.views.decorators.csrf import csrf_exempt
+from apps.storage_units.models import StorageUnit
 
 
 # Initialize Razorpay client
@@ -458,3 +459,42 @@ def verify_return_payment(request):
     booking.save()
 
     return Response({'status': 'ok', 'payment_id': payment.id})
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def calculate_return_payment(request):
+    data = request.data
+    booking_id = data.get("booking_id")
+
+    if not booking_id:
+        return Response({'error': 'booking_id is required'}, status=400)
+    booking = StorageBooking.objects.filter(id=booking_id).first()
+    if not booking:
+        return Response({"success": False, "message": "Booking not found."}, status=404)    
+    
+    if booking.status in ['completed', 'cancelled']:
+        return Response({'error': 'Return cannot be initiated for current booking status.'}, status=400)
+    
+    storageInstance = StorageUnit.objects.filter(id=booking.storage_unit.id).first()
+
+    start = booking.booking_created_time
+    end = booking.booking_end_time
+
+    diff = end - start
+    total_hours = diff.total_seconds() / 3600
+
+    total_amount = Decimal(storageInstance.price_per_hour) * Decimal(total_hours)
+    total_amount = round(total_amount)
+
+    booking.amount = total_amount
+    booking.save(update_fields=['amount'])
+
+    paymentInstance = Payment.objects.filter(booking=booking).first()
+    if paymentInstance:
+        paymentInstance.amount = total_amount
+        paymentInstance.save(update_fields=['amount'])
+
+    return Response({
+            'amount': total_amount,
+            'hours': total_hours
+        })
