@@ -308,7 +308,7 @@ def initiate_return_payment(request):
             payment_method='wallet',
             raw_response_from_razorpay=f"paid_via_wallet:{total_amount}"
         )
-        booking.status = 'return_payment_done'
+        booking.status = 'payment_complete'
         booking.save()
         return Response({'status': 'paid_via_wallet', 'payment_id': payment.id})
 
@@ -335,7 +335,7 @@ def initiate_return_payment(request):
                 payment_method=payment_method,
                 raw_response_from_razorpay=f"paid_via_wallet:{used_wallet}"
             )
-            booking.status = 'return_payment_done'
+            booking.status = 'payment_complete'
             booking.save()
             return Response({'status': 'paid_via_wallet', 'payment_id': payment.id})
 

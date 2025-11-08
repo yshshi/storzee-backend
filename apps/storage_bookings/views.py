@@ -599,7 +599,7 @@ def change_status(request):
     
     storage_instance.status = status
     storage_instance.last_updated_by = updatedby_instance.full_name if updatedby_instance else None
-    storage_instance.save(update_fields=['amount', 'last_updated_by'])
+    storage_instance.save(update_fields=['status', 'last_updated_by'])
 
     return Response({
         "success": True,

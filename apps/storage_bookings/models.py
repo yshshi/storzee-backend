@@ -17,6 +17,7 @@ class StorageBooking(MyBaseModel):
         ('luggage_reached','Luggage Reached'),
         ('completed', 'Completed'),
         ('cancelled', 'Cancelled'),
+        ('payment_complete', 'Payment Complete'),
     )
 
     user_booked = models.ForeignKey(User, on_delete=models.CASCADE, related_name='bookings')
