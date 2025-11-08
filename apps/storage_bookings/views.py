@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from django.utils import timezone
 from apps.users.models import User , UserDocument
 from apps.storage_units.models import StorageUnit
-from apps.storage_bookings.models import StorageBooking , BookingAddon
+from apps.storage_bookings.models import StorageBooking , BookingAddon , BookingStatusHistory
 from apps.storage_bookings.utils import get_next_bag_id,calculate_distance_km,return_type,return_status,compute_booking_end_time,parse_addons_param
 
 import datetime
@@ -114,7 +114,8 @@ def create_booking(request):
                 amount=total_amount,
                 storage_latitude=latitude,
                 storage_image_url=file_url,
-                storage_longitude=longitude
+                storage_longitude=longitude,
+                updated_at=start_time
             )
 
             if addons_param:
@@ -131,6 +132,11 @@ def create_booking(request):
                             return Response({"success": "Fail", "message": str(e)}, status=500) 
         except Exception as e:
             return Response({"success": "Fail", "message": str(e)}, status=500)
+        
+        booking_history = BookingStatusHistory.objects.create(
+            booking=booking,
+            booking_confirmed=True,
+            booking_confirmed_at=timezone.now())
 
 
         # trigger_notification_to_saathi(bookingid=booking.id)
@@ -566,27 +572,39 @@ def booking_details(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def booking_status(request):
-    storage_id = request.query_params.get('storage_id')  # Get from URL params
-    storage_instances = StorageBooking.objects.filter(id=storage_id)
+    storage_id = request.query_params.get('storage_id')
 
-    if not storage_instances.exists():
+    storage_instance = BookingStatusHistory.objects.filter(
+        booking__id=storage_id
+    ).first()
+
+    if not storage_instance:
         return Response({
             "success": False,
             "message": "No luggage found for this ID.",
             "data": []
         }, status=404)
-    
-    data = []
-    for s in storage_instances:
-        data.append({
-            "id": str(s.id),
-            "status": s.status,
-        })
-        
+
+    data = {
+        "id": storage_instance.id,
+        "booking_confirmed": storage_instance.booking_confirmed,
+        "booking_confirmed_at": storage_instance.booking_confirmed_at,
+        "luggage_stored": storage_instance.luggage_stored,
+        "luggage_stored_at": storage_instance.luggage_stored_at,
+        "payment_completed": storage_instance.payment_completed,
+        "payment_completed_at": storage_instance.payment_completed_at,
+        "booking_completed": storage_instance.booking_completed,
+        "booking_completed_at": storage_instance.booking_completed_at,
+        "booking_cancelled": storage_instance.booking_cancelled,
+        "booking_cancelled_at": storage_instance.booking_cancelled_at,
+    }
+
     return Response({
         "success": True,
         "message": "Luggage Found!",
-        "data": data})
+        "data": data
+    })
+
 
 @api_view(['PATCH'])
 @permission_classes([AllowAny])
@@ -607,7 +625,24 @@ def change_status(request):
     
     storage_instance.status = status
     storage_instance.last_updated_by = updatedby_instance.full_name if updatedby_instance else None
-    storage_instance.save(update_fields=['status', 'last_updated_by'])
+    storage_instance.updated_at = timezone.now()
+    storage_instance.save(update_fields=['status', 'last_updated_by', 'updated_at'])
+
+    booking_history = BookingStatusHistory.objects.filter(booking=storage_instance).first()
+    if booking_history:
+        if status == 'cancelled':
+            booking_history.booking_cancelled = True
+            booking_history.booking_cancelled_at = timezone.now()
+        elif status == 'completed':
+            booking_history.booking_completed = True
+            booking_history.booking_completed_at = timezone.now()
+        elif status == 'luggage_Stored':
+            booking_history.luggage_stored = True
+            booking_history.luggage_stored_at = timezone.now()
+        elif status == 'payment_completed':
+            booking_history.payment_completed = True
+            booking_history.payment_completed_at = timezone.now()
+        booking_history.save()
 
     return Response({
         "success": True,
@@ -632,7 +667,8 @@ def change_amount(request):
     
     storage_instance.amount = amount
     storage_instance.amount_updated_by = updatedby_instance.full_name if updatedby_instance else None
-    storage_instance.save(update_fields=['amount', 'amount_updated_by'])
+    storage_instance.updated_at = timezone.now()
+    storage_instance.save(update_fields=['amount', 'amount_updated_by','updated_at'])
 
     paymentInstance = Payment.objects.filter(booking=storage_instance).first()
     if paymentInstance:

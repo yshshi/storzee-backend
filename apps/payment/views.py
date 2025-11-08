@@ -190,7 +190,7 @@ import razorpay
 import environ
 
 from apps.users.models import User
-from apps.storage_bookings.models import StorageBooking
+from apps.storage_bookings.models import StorageBooking , BookingStatusHistory
 from apps.payment.models import Payment  # adjust import path if needed
 from apps.wallet.models import UserWallet  # if you have this model, else remove wallet handling
 env = environ.Env()
@@ -198,6 +198,7 @@ environ.Env.read_env()
 from apps.payment.utils import generate_receipt_number
 from django.views.decorators.csrf import csrf_exempt
 from apps.storage_units.models import StorageUnit
+from django.utils import timezone
 
 
 # Initialize Razorpay client
@@ -457,6 +458,12 @@ def verify_return_payment(request):
     booking = payment.booking
     booking.status = 'return_payment_done'
     booking.save()
+
+    booking_history = BookingStatusHistory.objects.filter(booking=booking).first()
+    if booking_history:
+        booking_history.payment_completed = True
+        booking_history.payment_completed_at = timezone.now()
+        booking_history.save()
 
     return Response({'status': 'ok', 'payment_id': payment.id})
 
