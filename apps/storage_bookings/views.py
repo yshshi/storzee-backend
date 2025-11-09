@@ -26,6 +26,7 @@ from django.db import transaction
 from django.db.models import Prefetch
 from decimal import Decimal
 from apps.payment.models import Payment
+from datetime import datetime
 
 MAX_BOOKING_TIME = os.getenv('MAX_BOOKING_TIME')
 # Create your views here.
@@ -91,10 +92,10 @@ def create_booking(request):
             if not luggage_time:
                 luggage_time = MAX_BOOKING_TIME
 
-
+            start_time_str = datetime.fromisoformat(start_time) 
             booking_end_time = compute_booking_end_time(start_time, luggage_time)
 
-            diff = booking_end_time - start_time
+            diff = booking_end_time - start_time_str
             total_hours = diff.total_seconds() / 3600
 
             total_amount = Decimal(storage_unit.price_per_hour) * Decimal(total_hours)
