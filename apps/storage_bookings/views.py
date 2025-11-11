@@ -746,3 +746,31 @@ def get_all_bookings(request):
         "success": True,
         "message": "Luggage List Returned successfully!",
         "data": data})
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_detail_bookings(request):
+    booking_id = request.GET.get('booking_id')
+
+    booking = StorageBooking.objects.filter(id=booking_id).first()
+    if not booking:
+        return Response({
+            "success": False,
+            "message": "No luggage details found for this ID.",
+            "data": None
+        }, status=404)
+
+    data = {
+        "storage_unit": {
+            "longitude": booking.storage_unit.longitude,
+            "latitude": booking.storage_unit.latitude,
+            "name": booking.storage_unit.title,
+        },
+        "booking_id": booking.booking_id,
+    }
+
+    return Response({
+        "success": True,
+        "message": "Booking details returned successfully.",
+        "data": data
+    })
