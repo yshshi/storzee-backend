@@ -766,7 +766,7 @@ def get_detail_bookings(request):
             "latitude": booking.storage_unit.latitude,
             "name": booking.storage_unit.title,
         },
-        "booking_id": booking.booking_id,
+        "booking_number": booking.booking_id,
     }
 
     return Response({
