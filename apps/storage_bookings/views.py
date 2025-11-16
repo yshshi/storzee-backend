@@ -149,6 +149,7 @@ def create_booking(request):
                 "id": booking.id,
                 "booking_id": booking.booking_id,
                 "storage_title": storage_unit.title,
+                "storage_id": storage_unit.id,
                 "start_time": booking.booking_created_time,
                 "end_time": booking.booking_end_time,
                 "status": booking.status,
