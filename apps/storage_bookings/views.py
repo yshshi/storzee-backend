@@ -642,16 +642,31 @@ def change_status(request):
         if status == 'cancelled':
             booking_history.booking_cancelled = True
             booking_history.booking_cancelled_at = timezone.now()
+            notification_status = 'cancelled'
+            title = 'Booking Cancelled'
+            body = f"❌ Hi {storage_instance.user_booked.full_name}, your booking has been cancelled. If this wasn’t you, please contact support immediately."
         elif status == 'completed':
             booking_history.booking_completed = True
             booking_history.booking_completed_at = timezone.now()
+            notification_status = 'completed'
+            title = '🎉 Booking Completed Successfully'
+            body = f"⭐ Great job {storage_instance.user_booked.full_name}! Your booking is fully completed. We’d love if you could share your feedback!"
         elif status == 'luggage_Stored':
             booking_history.luggage_stored = True
             booking_history.luggage_stored_at = timezone.now()
+            notification_status = 'luggage_Stored'
+            title = '🧳 Your Luggage Is Safely Stored'
+            body = f"✨ All set {storage_instance.user_booked.full_name}! Your luggage has been securely stored. Go enjoy your day without any worries."
         elif status == 'payment_completed':
             booking_history.payment_completed = True
             booking_history.payment_completed_at = timezone.now()
+            notification_status = 'payment_completed'
+            title = '💳 Payment Received'
+            body = f"🙏 Thanks {storage_instance.user_booked.full_name}! Your payment has been successfully received. We appreciate your trust in us."
         booking_history.save()
+
+        token = UserDeviceToken.objects.filter(user=storage_instance.user_booked).first()
+        asyncio.run(send_ayncpush_notification(token.token,title, body))
 
     return Response({
         "success": True,

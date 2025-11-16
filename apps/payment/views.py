@@ -189,7 +189,7 @@ from rest_framework.exceptions import ValidationError
 import razorpay
 import environ
 
-from apps.users.models import User
+from apps.users.models import User,UserDeviceToken
 from apps.storage_bookings.models import StorageBooking , BookingStatusHistory
 from apps.payment.models import Payment  # adjust import path if needed
 from apps.wallet.models import UserWallet  # if you have this model, else remove wallet handling
@@ -199,6 +199,9 @@ from apps.payment.utils import generate_receipt_number
 from django.views.decorators.csrf import csrf_exempt
 from apps.storage_units.models import StorageUnit
 from django.utils import timezone
+from utils.trigger_notiifcation import send_ayncpush_notification
+from apps.users.models import UserDeviceToken
+import asyncio
 
 
 # Initialize Razorpay client
@@ -447,6 +450,9 @@ def verify_return_payment(request):
     except Exception as e:
         # log but allow HMAC verification to be primary check
         payment.raw_response_from_razorpay = (payment.raw_response_from_razorpay or "") + f"\nfetch_error:{str(e)}"
+        payment.status = 'failed'
+        payment.save()
+        return Response({'status': 'payment_failed', 'detail': rzp_payment}, status=500)
 
     # mark payment success
     payment.razorpay_payment_id = razorpay_payment_id
@@ -465,7 +471,12 @@ def verify_return_payment(request):
         booking_history.payment_completed_at = timezone.now()
         booking_history.save()
 
-    return Response({'status': 'ok', 'payment_id': payment.id})
+    token = UserDeviceToken.objects.filter(user=payment.user).first()
+    title = '💳 Payment Received'
+    body = f"🙏 Thanks {payment.booking.user_booked.full_name}! Your payment has been successfully received. We appreciate your trust in us."
+    asyncio.run(send_ayncpush_notification(token.token,title, body))
+
+    return Response({'status': 'ok', 'payment_id': payment.id, 'booking_id': payment.booking.id, 'user': payment.user.id})
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
