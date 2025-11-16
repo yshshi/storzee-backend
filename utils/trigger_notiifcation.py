@@ -6,6 +6,8 @@ import requests
 import environ
 env = environ.Env()
 from utils.send_fcm_notification import send_fcm_v1_message
+import aiohttp
+
 
 
 def send_push_notification_to_saathi_for_pickup(nearby_saathis, booking_id):
@@ -124,3 +126,25 @@ def send_push_notification(token, title, body):
     response = requests.post('https://exp.host/--/api/v2/push/send', json=message)
     print(response.text)
     return response.json()
+
+
+async def send_ayncpush_notification(token, title, body):
+    if not token.startswith("ExponentPushToken["):
+        token = f"ExponentPushToken[{token}]"
+
+    message = {
+        'to': token,
+        'sound': 'default',
+        'title': title,
+        'body': body,
+        'priority': 'high',
+    }
+
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            'https://exp.host/--/api/v2/push/send',
+            json=message
+        ) as response:
+            resp_text = await response.text()
+            print(resp_text)
+            return await response.json()

@@ -27,6 +27,9 @@ from django.db.models import Prefetch
 from decimal import Decimal
 from apps.payment.models import Payment
 from datetime import datetime
+from utils.trigger_notiifcation import send_ayncpush_notification
+from apps.users.models import UserDeviceToken
+import asyncio
 
 MAX_BOOKING_TIME = os.getenv('MAX_BOOKING_TIME')
 # Create your views here.
@@ -83,7 +86,7 @@ def create_booking(request):
 
             is_document_verified = UserDocument.objects.filter(user=user).exists()
             if not is_document_verified:
-                return Response({"success": False, "message": "User documents not available."}, status=400)
+                return Response({"success": False, "message": "User documents not available."}, status=404)
             storage_unit = StorageUnit.objects.get(id=storage_unit_id)
 
             booking_id = get_next_bag_id()
@@ -141,6 +144,9 @@ def create_booking(request):
 
 
         # trigger_notification_to_saathi(bookingid=booking.id)
+        token = UserDeviceToken.objects.filter(user=user).first()
+        body = f"Awesome {user.full_name}! Your booking is all set. Drop your item at the nearest Saathi point."
+        asyncio.run(send_ayncpush_notification(token.token,'Booking Confirmed', body))
 
         return Response({
             "success": True,
