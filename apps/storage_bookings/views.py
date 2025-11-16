@@ -558,6 +558,7 @@ def booking_details(request):
         data.append({
             "id": str(s.id),
             "type": return_type(s.status),
+            "storageId": s.storage_unit.id if s.storage_unit.id else "",
             "serviceName": s.storage_unit.title if s.storage_unit else "",
             "providerName": s.storage_unit.address if s.storage_unit else "",
             "date": localtime(s.booking_created_time).strftime("%Y-%m-%d") if s.booking_created_time else "",
