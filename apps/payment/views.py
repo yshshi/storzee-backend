@@ -189,7 +189,7 @@ from rest_framework.exceptions import ValidationError
 import razorpay
 import environ
 
-from apps.users.models import User,UserDeviceToken
+from apps.users.models import User,UserDeviceToken , UserNotification
 from apps.storage_bookings.models import StorageBooking , BookingStatusHistory
 from apps.payment.models import Payment  # adjust import path if needed
 from apps.wallet.models import UserWallet  # if you have this model, else remove wallet handling
@@ -475,6 +475,18 @@ def verify_return_payment(request):
     title = '💳 Payment Received'
     body = f"🙏 Thanks {payment.booking.user_booked.full_name}! Your payment has been successfully received. We appreciate your trust in us."
     asyncio.run(send_ayncpush_notification(token.token,title, body))
+
+    data = {
+            'user': payment.booking.user_booked,
+            'title': 'Payment',
+            'message': body,
+            'type': 'Payment',
+            'isRead': False,
+            'priority': 'Medium',
+            'actionRequired': False
+        }
+
+    dataInserted = UserNotification.objects.create(**data)
 
     return Response({'status': 'ok', 'payment_id': payment.id, 'booking_id': payment.booking.id, 'user': payment.user.id})
 

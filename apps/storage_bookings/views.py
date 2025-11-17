@@ -28,7 +28,7 @@ from decimal import Decimal
 from apps.payment.models import Payment
 from datetime import datetime
 from utils.trigger_notiifcation import send_ayncpush_notification
-from apps.users.models import UserDeviceToken
+from apps.users.models import UserDeviceToken,UserNotification
 import asyncio
 
 MAX_BOOKING_TIME = os.getenv('MAX_BOOKING_TIME')
@@ -147,6 +147,18 @@ def create_booking(request):
         token = UserDeviceToken.objects.filter(user=user).first()
         body = f"Awesome {user.full_name}! Your booking is all set. Drop your item at the nearest Saathi point."
         asyncio.run(send_ayncpush_notification(token.token,'Booking Confirmed', body))
+
+        data = {
+            'user': user,
+            'title': 'Booking Confirmed',
+            'message': body,
+            'type': 'Booking',
+            'isRead': False,
+            'priority': 'Medium',
+            'actionRequired': False
+        }
+
+        dataInserted = UserNotification.objects.create(**data)
 
         return Response({
             "success": True,
@@ -644,29 +656,45 @@ def change_status(request):
             booking_history.booking_cancelled_at = timezone.now()
             notification_status = 'cancelled'
             title = 'Booking Cancelled'
+            type = 'Booking'
             body = f"❌ Hi {storage_instance.user_booked.full_name}, your booking has been cancelled. If this wasn’t you, please contact support immediately."
         elif status == 'completed':
             booking_history.booking_completed = True
             booking_history.booking_completed_at = timezone.now()
             notification_status = 'completed'
             title = '🎉 Booking Completed Successfully'
+            type = 'Booking'
             body = f"⭐ Great job {storage_instance.user_booked.full_name}! Your booking is fully completed. We’d love if you could share your feedback!"
         elif status == 'luggage_Stored':
             booking_history.luggage_stored = True
             booking_history.luggage_stored_at = timezone.now()
             notification_status = 'luggage_Stored'
             title = '🧳 Your Luggage Is Safely Stored'
+            type = 'pickup'
             body = f"✨ All set {storage_instance.user_booked.full_name}! Your luggage has been securely stored. Go enjoy your day without any worries."
         elif status == 'payment_completed':
             booking_history.payment_completed = True
             booking_history.payment_completed_at = timezone.now()
             notification_status = 'payment_completed'
             title = '💳 Payment Received'
+            type = 'payment'
             body = f"🙏 Thanks {storage_instance.user_booked.full_name}! Your payment has been successfully received. We appreciate your trust in us."
         booking_history.save()
 
         token = UserDeviceToken.objects.filter(user=storage_instance.user_booked).first()
         asyncio.run(send_ayncpush_notification(token.token,title, body))
+
+        data = {
+            'user': storage_instance.user_booked,
+            'title': title,
+            'message': body,
+            'type': type,
+            'isRead': False,
+            'priority': 'Medium',
+            'actionRequired': False
+        }
+
+        dataInserted = UserNotification.objects.create(**data)
 
     return Response({
         "success": True,
