@@ -419,6 +419,10 @@ window.onload = function () {
   const RETURN_URL = "storezee://payment-result";
   const EXPIRY_MIN = 5;
 
+  // YOUR NEW DEEP LINKS:
+  const SUCCESS_LINK = "storezee://(storage)/PaymentConfirmation";
+  const CANCEL_LINK  = "storezee://(storage)/PaymentCancel";
+
   if (!PAYMENT_ID || !ORDER_ID || !AMOUNT) {
     document.body.innerHTML = "<h3>Invalid or expired payment link</h3>";
     throw new Error("Missing required payment parameters");
@@ -437,7 +441,7 @@ window.onload = function () {
     if (rem <= 0) {
       msgEl.innerText = "Session expired.";
       document.getElementById("payBtn").disabled = true;
-      setTimeout(() => location.href = `${RETURN_URL}?status=expired`, 1500);
+      setTimeout(() => location.href = CANCEL_LINK, 1500);
       return;
     }
     setTimeout(tick, 1000);
@@ -473,16 +477,12 @@ window.onload = function () {
           console.error(e);
         }
         msgEl.innerText = "Payment successful!";
-        setTimeout(() => {
-          location.href = `${RETURN_URL}?status=success&payment_id=${paymentDbId}`;
-        }, 800);
+        setTimeout(() => (location.href = SUCCESS_LINK), 800);
       },
       modal: {
         ondismiss: function () {
           msgEl.innerText = "Payment cancelled.";
-          setTimeout(() => {
-            location.href = `${RETURN_URL}?status=cancel`;
-          }, 800);
+          setTimeout(() => (location.href = CANCEL_LINK), 800);
         }
       }
     };
