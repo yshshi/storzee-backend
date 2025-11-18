@@ -197,7 +197,8 @@ env = environ.Env()
 environ.Env.read_env()
 from apps.payment.utils import generate_receipt_number
 from django.views.decorators.csrf import csrf_exempt
-from apps.storage_units.models import StorageUnit
+from apps.storage_units.models import StorageUnit ,Addon
+from apps.storage_bookings.models import BookingAddon
 from django.utils import timezone
 from utils.trigger_notiifcation import send_ayncpush_notification
 from apps.users.models import UserDeviceToken
@@ -505,7 +506,7 @@ def calculate_return_payment(request):
     if booking.status in ['completed', 'cancelled']:
         return Response({'error': 'Return cannot be initiated for current booking status.'}, status=400)
     
-    storageInstance = StorageUnit.objects.filter(id=booking.storage_unit.id).first()
+    # storageInstance = booking.storage_unit
 
     start = booking.booking_created_time
     end = booking.booking_end_time
@@ -513,18 +514,29 @@ def calculate_return_payment(request):
     diff = end - start
     total_hours = diff.total_seconds() / 3600
 
-    total_amount = Decimal(storageInstance.price_per_hour) * Decimal(total_hours)
-    total_amount = round(total_amount)
+    # total_amount = Decimal(storageInstance.price_per_hour) * Decimal(total_hours)
+    # total_amount = round(total_amount)
 
-    booking.amount = total_amount
+    addons = BookingAddon.objects.filter(booking=booking).select_related("addon")
+    addon_total = Decimal(0)
+
+    if not addons.exists():
+        addon_total = Decimal(booking.storage_unit.price_per_hour) * Decimal(total_hours)
+        addon_total = round(addon_total)
+    for item in addons:
+        addon_price = Decimal(item.addon.base_price)
+        addon_amount = addon_price * Decimal(total_hours)
+        addon_total += addon_amount
+
+    booking.amount = addon_total
     booking.save(update_fields=['amount'])
 
     paymentInstance = Payment.objects.filter(booking=booking).first()
     if paymentInstance:
-        paymentInstance.amount = total_amount
+        paymentInstance.amount = addon_total
         paymentInstance.save(update_fields=['amount'])
 
     return Response({
-            'amount': total_amount,
+            'amount': addon_total,
             'hours': total_hours
         })
