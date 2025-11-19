@@ -13,12 +13,12 @@ app.autodiscover_tasks()
 
 # ---- SIMPLE CRON SETUP HERE ----
 app.conf.beat_schedule = {
-    'run-every-5-min': {
-        'task': 'apps.notification.tasks.sample_task',
-        'schedule': crontab(minute="*/1"),
-    },
-    'send-test-notification-every-5-min': {
-        'task': 'apps.notification.tasks.send_test_notification',
-        'schedule': crontab(minute="*/5"),
-    },
+    # 'run-every-5-min': {
+    #     'task': 'apps.notification.tasks.sample_task',
+    #     'schedule': crontab(minute="*/1"),
+    # },
+    # 'send-test-notification-every-5-min': {
+    #     'task': 'apps.notification.tasks.send_test_notification',
+    #     'schedule': crontab(minute="*/5"),
+    # },
 }
