@@ -464,6 +464,7 @@ def verify_return_payment(request):
     # update booking status (idempotent)
     booking = payment.booking
     booking.status = 'return_payment_done'
+    booking.payment_status = 'paid'
     booking.save()
 
     booking_history = BookingStatusHistory.objects.filter(booking=booking).first()

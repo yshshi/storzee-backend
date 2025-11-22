@@ -49,6 +49,7 @@ class StorageBooking(MyBaseModel):
     return_estimated_amount = models.PositiveIntegerField(null=True, blank=True)
     last_updated_by = models.CharField(max_length=100, blank=True, null=True)
     amount_updated_by = models.CharField(max_length=100, blank=True, null=True)
+    payment_status = models.CharField(max_length=50, default='pending')
 
     def __str__(self):
         return f"{self.user.full_name} → {self.storage_unit.title} [{self.status}]"

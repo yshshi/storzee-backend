@@ -676,6 +676,8 @@ def change_status(request):
             booking_history.payment_completed = True
             booking_history.payment_completed_at = timezone.now()
             notification_status = 'payment_completed'
+            storage_instance.payment_status = 'paid'
+            storage_instance.save(update_fields=['payment_status'])
             title = '💳 Payment Received'
             type = 'payment'
             body = f"🙏 Thanks {storage_instance.user_booked.full_name}! Your payment has been successfully received. We appreciate your trust in us."
