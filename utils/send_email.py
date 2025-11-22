@@ -2,11 +2,21 @@
 
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
+import smtplib, ssl
+from email.message import EmailMessage
+import os
+# Initialize environment variables
+
+port = os.getenv('ZOHO_SMTP_PORT')
+smtp_server = os.getenv('ZOHO_SMTP_SERVER')
+username=os.getenv('ZOHO_SMTP_USERNAME')
+password = os.getenv('ZOHO_SMTP_PASSWORD')
+from_email = os.getenv('ZOHO_FROM_EMAIL')
 
 def send_otp_email(email, otp, user_name):
-    subject = f"Ding Dong 🛎️ Hey {user_name}, your Storzee OTP is here! "
-    from_email = 'yashofficial2001@gmail.com'
-    to = email
+    # subject = f"Ding Dong 🛎️ Hey {user_name}, your Storzee OTP is here! "
+    # from_email = 'yashofficial2001@gmail.com'
+    # to = email
     body='''
 <!DOCTYPE html>
 <html>
@@ -67,14 +77,40 @@ def send_otp_email(email, otp, user_name):
 
 '''
     body = body.replace('{{otp}}', otp)
-    msg = EmailMultiAlternatives(subject, body, from_email, [to])
-    msg.attach_alternative(body, "text/html")
-    msg.send()
+    # msg = EmailMultiAlternatives(subject, body, from_email, [to])
+    # msg.attach_alternative(body, "text/html")
+    # msg.send()
+    msg = EmailMessage()
+    msg['Subject'] = f"Ding Dong 🛎️ Hey {user_name}, your Storzee OTP is here! "
+    msg['From'] = from_email#"info@thestorezee.com"
+    msg['To'] = email
+    message = body
+    msg.set_content(message)
+    msg = EmailMessage()
+    
+
+    try:
+      if port == 465:
+          context = ssl.create_default_context()
+          with smtplib.SMTP_SSL(smtp_server, port, context=context) as server:
+              server.login(username, password)
+              server.send_message(msg)
+      elif port == 587:
+          with smtplib.SMTP(smtp_server, port) as server:
+              server.starttls()
+              server.login(username, password)
+              server.send_message(msg)
+      else:
+          print ("use 465 / 587 as port value")
+          exit()
+      print ("successfully sent")
+    except Exception as e:
+      print (e)
 
 def send_login_otp_email(email, otp, user_name):
-    subject = f"Welcome back {user_name}! Use this OTP to login your Storezee account"
-    from_email = 'yashofficial2001@gmail.com'
-    to = email
+    # subject = f"Welcome back {user_name}! Use this OTP to login your Storezee account"
+    # from_email = 'yashofficial2001@gmail.com'
+    # to = email
     body='''
 <!DOCTYPE html>
 <html>
@@ -136,8 +172,34 @@ def send_login_otp_email(email, otp, user_name):
 '''
     body = body.replace('{{otp}}', otp)
     body = body.replace('{{user}}', user_name)
-    msg = EmailMultiAlternatives(subject, body, from_email, [to])
-    msg.attach_alternative(body, "text/html")
-    msg.send()
+    # msg = EmailMultiAlternatives(subject, body, from_email, [to])
+    # msg.attach_alternative(body, "text/html")
+    # msg.send()
+    msg = EmailMessage()
+    msg['Subject'] = f"Welcome back {user_name}! Use this OTP to login your Storezee account"
+    msg['From'] = from_email#"info@thestorezee.com"
+    msg['To'] = email
+    message = body
+    msg.set_content(message)
+    msg = EmailMessage()
+    
+
+    try:
+      if port == 465:
+          context = ssl.create_default_context()
+          with smtplib.SMTP_SSL(smtp_server, port, context=context) as server:
+              server.login(username, password)
+              server.send_message(msg)
+      elif port == 587:
+          with smtplib.SMTP(smtp_server, port) as server:
+              server.starttls()
+              server.login(username, password)
+              server.send_message(msg)
+      else:
+          print ("use 465 / 587 as port value")
+          exit()
+      print ("successfully sent")
+    except Exception as e:
+      print (e)
 
     
