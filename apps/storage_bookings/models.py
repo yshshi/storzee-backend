@@ -77,18 +77,21 @@ class BookingAddon(models.Model):
     booking = models.ForeignKey(
         StorageBooking,  
         on_delete=models.CASCADE,
-        related_name="booking_addons_id"
+        related_name="booking_addons_id",blank=True, null=True
     )
     addon = models.ForeignKey(
         Addon,
         on_delete=models.PROTECT,
-        related_name="booking_addons"
+        related_name="booking_addons",blank=True, null=True
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    addon_str_id = models.CharField(max_length=100, blank=True, null=True)
+    booking_str_id = models.CharField(max_length=100, blank=True, null=True)
+
 
 class BookingStatusHistory(models.Model):
-    booking = models.ForeignKey(StorageBooking, on_delete=models.CASCADE, related_name='status_history')
+    booking = models.ForeignKey(StorageBooking, on_delete=models.CASCADE, related_name='status_history',blank=True, null=True)
     booking_confirmed = models.BooleanField(default=False)
     booking_confirmed_at = models.DateTimeField(blank=True, null=True)
     luggage_stored = models.BooleanField(default=False)
