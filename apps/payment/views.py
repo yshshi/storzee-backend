@@ -538,5 +538,8 @@ def calculate_return_payment(request):
 
     return Response({
             'amount': addon_total,
-            'hours': total_hours
+            'hours': total_hours,
+            'razorpay_enabled': env('RAZORPAY_ENABLE', default=True),
+            'storage_latitude': booking.storage_unit.latitude,
+            'storage_longitude': booking.storage_unit.longitude
         })
