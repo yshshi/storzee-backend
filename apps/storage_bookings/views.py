@@ -789,6 +789,7 @@ def get_all_bookings(request):
             'luggage_image': booking.storage_image_url,
             "updated_by": booking.last_updated_by,
             "amount_updated_by": booking.amount_updated_by,
+            "payment_status": booking.payment_status,
             "user_booked": {
                 "id": user.id,
                 "full_name": user.full_name,
