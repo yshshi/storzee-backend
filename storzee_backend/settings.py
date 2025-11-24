@@ -86,6 +86,19 @@ CHANNEL_LAYERS = {
     },
 }
 
+#Redis Cache Configuration
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://:serbfb73dh27746db@13.202.195.142:6379/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "PASSWORD": "serbfb73dh27746db",
+        }
+    }
+}
+
+
 # Database config (PostgreSQL)
 DATABASES = {
     'default': {

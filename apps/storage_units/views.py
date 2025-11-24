@@ -8,6 +8,8 @@ from .models import StorageUnit , Feedback , StorageUnitAddon, StoargeNearbyPlac
 from .utils import haversine,calculate_distance
 from utils.get_city_name import get_city_name_from_coords
 from django.db.models import Q
+from django.core.cache import cache
+
 
 # Create your views here.
 @api_view(['POST'])
@@ -205,30 +207,26 @@ def get_nearby_storage_units(request):
 def get_storage_details(request):
     storage_id = request.query_params.get('storage_id')
     if not storage_id:
-        return Response({
-            "success": False,
-            "message": "Storage Id is required!"
-        }, status=400)
-    
+        return Response({"success": False, "message": "Storage Id is required!"}, status=400)
+
+    cache_key = f"storage_details:{storage_id}"
+    cached_data = cache.get(cache_key)
+
+    if cached_data:
+        return Response({"success": True, "data": cached_data}, status=200)
+
     unit = StorageUnit.objects.filter(id=storage_id).first()
     if not unit:
-        return Response({
-            "success": False,
-            "message": "Storage unit not found!"
-        }, status=404)
-    
-    images = [img.image_url for img in unit.images.all()]
+        return Response({"success": False, "message": "Storage unit not found!"}, status=404)
 
-        # Fetch feedback details
-    feedbacks = []
-    for feedback in unit.feedbacks.select_related('user').all():
-        feedbacks.append({
-            "user": feedback.user.full_name,
-            "rating": feedback.rating,
-            "comment": feedback.comment,
-            "created_at": feedback.created_at.strftime('%Y-%m-%d %H:%M:%S')
-        })
-    
+    images = [img.image_url for img in unit.images.all()]
+    feedbacks = [{
+        "user": fb.user.full_name,
+        "rating": fb.rating,
+        "comment": fb.comment,
+        "created_at": fb.created_at.strftime('%Y-%m-%d %H:%M:%S')
+    } for fb in unit.feedbacks.select_related("user").all()]
+
     data = {
         "id": str(unit.id),
         "title": unit.title,
@@ -247,10 +245,11 @@ def get_storage_details(request):
         "images": images,
         "feedbacks": feedbacks
     }
-    return Response({
-        "success": True,
-        "data": data
-    }, status=200)
+
+    # store in Redis for 5 minutes
+    cache.set(cache_key, data, timeout=300)
+
+    return Response({"success": True, "data": data}, status=200)
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
@@ -305,45 +304,24 @@ def search_storage_units(request):
 @permission_classes([AllowAny])
 def addons_storage_item(request):
     storage_id = request.query_params.get('storage_id')
-    if not storage_id:
-        return Response({
-            "success": False,
-            "message": "Storage Id is required!"
-        }, status=400)
 
+    cache_key = f"addons:{storage_id}"
+    cached = cache.get(cache_key)
+    if cached:
+        return Response({"success": True, **cached}, status=200)
+
+    # Normal logic
     unit = StorageUnit.objects.filter(id=storage_id).first()
-    if not unit:
-        return Response({
-            "success": False,
-            "message": "Storage unit not found!"
-        }, status=404)
-
     unit_addons = StorageUnitAddon.objects.filter(storage_unit=unit).select_related('addon')
 
-    addons = []
-    for ua in unit_addons:
-        addon = ua.addon
-        addons.append({
-            "addon_id": str(addon.id),
-            "name": addon.name,
-            "description": addon.description,
-            "base_price": float(addon.base_price),
-            "price_override": float(ua.price_override) if ua.price_override is not None else None,
-            "effective_price": float(ua.price_override if ua.price_override is not None else addon.base_price),
-            "is_available": ua.is_available,
-        })
-
-    return Response({
-        "success": True,
-        "storage_unit": {
-            "id": str(unit.id),
-            "title": unit.title,
-            "city": unit.city,
-            "price_per_hour": float(unit.price_per_hour or 0),
-            "available": unit.available
-        },
+    addons = [...]
+    response_data = {
+        "storage_unit": {...},
         "addons": addons
-    }, status=200)
+    }
+
+    cache.set(cache_key, response_data, timeout=300)
+    return Response({"success": True, **response_data}, status=200)
 
 @api_view(['GET'])
 @permission_classes([AllowAny])

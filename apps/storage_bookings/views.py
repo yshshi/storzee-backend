@@ -30,6 +30,7 @@ from datetime import datetime
 from utils.trigger_notiifcation import send_ayncpush_notification
 from apps.users.models import UserDeviceToken,UserNotification
 import asyncio
+from django.core.cache import cache
 
 MAX_BOOKING_TIME = os.getenv('MAX_BOOKING_TIME')
 # Create your views here.
@@ -555,7 +556,14 @@ def validate_delivery(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def booking_details(request):
-    user_id = request.query_params.get('user_id')  # Get from URL params
+    user_id = request.query_params.get('user_id')
+
+    cache_key = f"booking_details:{user_id}"
+    cached_data = cache.get(cache_key)
+
+    if cached_data:
+        return Response({"success": True, "message": "Cached", "data": cached_data}, status=200)
+
     storage_instances = StorageBooking.objects.filter(user_booked=user_id).order_by('-created_at')
 
     if not storage_instances.exists():
@@ -583,6 +591,8 @@ def booking_details(request):
             "longitude": s.storage_longitude,
         })
 
+    cache.set(cache_key, data, timeout=300)  # cache for 5 minutes
+
     return Response({
         "success": True,
         "message": "Luggage Found!",
@@ -595,16 +605,18 @@ def booking_details(request):
 def booking_status(request):
     storage_id = request.query_params.get('storage_id')
 
+    cache_key = f"booking_status:{storage_id}"
+    cached = cache.get(cache_key)
+    
+    if cached:
+        return Response({"success": True, "message": "Cached", "data": cached}, status=200)
+
     storage_instance = BookingStatusHistory.objects.filter(
         booking__id=storage_id
     ).first()
 
     if not storage_instance:
-        return Response({
-            "success": False,
-            "message": "No luggage found for this ID.",
-            "data": []
-        }, status=404)
+        return Response({"success": False, "message": "No luggage found.", "data": []}, status=404)
 
     data = {
         "id": storage_instance.id,
@@ -620,11 +632,9 @@ def booking_status(request):
         "booking_cancelled_at": storage_instance.booking_cancelled_at,
     }
 
-    return Response({
-        "success": True,
-        "message": "Luggage Found!",
-        "data": data
-    })
+    cache.set(cache_key, data, timeout=120)  # 2 minutes
+
+    return Response({"success": True, "message": "Luggage Found!", "data": data})
 
 
 @api_view(['PATCH'])
@@ -738,7 +748,12 @@ def change_amount(request):
 def get_all_bookings(request):
     booking_id = request.GET.get('booking_id')
 
-    # Optimized query: one-shot load of related data
+    cache_key = f"get_all_bookings:{booking_id if booking_id else 'all'}"
+    cached = cache.get(cache_key)
+
+    if cached:
+        return Response({"success": True, "message": "Cached", "data": cached}, status=200)
+
     queryset = (
         StorageBooking.objects.select_related(
             'user_booked', 'storage_unit', 'assigned_saathi', 'luggage_rakshak'
@@ -758,7 +773,7 @@ def get_all_bookings(request):
     data = []
     for booking in queryset:
         user = booking.user_booked
-        user_docs = user.user_documents.all() if hasattr(user, 'user_documents') else []
+        user_docs = user.user_documents.all()
 
         data.append({
             "id": booking.id,
@@ -771,9 +786,9 @@ def get_all_bookings(request):
             "storage_booked_location": booking.storage_booked_location,
             "storage_unit": booking.storage_unit.title if booking.storage_unit else None,
             "assigned_saathi": getattr(booking.assigned_saathi, "name", None),
-            'luggage_image': booking.storage_image_url if booking.storage_image_url else None,
-            "updated_by": booking.last_updated_by if booking.last_updated_by else None,
-            "amount_updated_by": booking.amount_updated_by if booking.amount_updated_by else None,
+            'luggage_image': booking.storage_image_url,
+            "updated_by": booking.last_updated_by,
+            "amount_updated_by": booking.amount_updated_by,
             "user_booked": {
                 "id": user.id,
                 "full_name": user.full_name,
@@ -795,23 +810,24 @@ def get_all_bookings(request):
             }
         })
 
-    return Response({
-        "success": True,
-        "message": "Luggage List Returned successfully!",
-        "data": data})
+    cache.set(cache_key, data, timeout=300)
+
+    return Response({"success": True, "message": "Luggage List Returned successfully!", "data": data})
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_detail_bookings(request):
     booking_id = request.GET.get('booking_id')
 
+    cache_key = f"detail_booking:{booking_id}"
+    cached = cache.get(cache_key)
+    
+    if cached:
+        return Response({"success": True, "message": "Cached", "data": cached})
+
     booking = StorageBooking.objects.filter(id=booking_id).first()
     if not booking:
-        return Response({
-            "success": False,
-            "message": "No luggage details found for this ID.",
-            "data": None
-        }, status=404)
+        return Response({"success": False, "message": "No booking details found.", "data": None}, status=404)
 
     data = {
         "storage_unit": {
@@ -822,8 +838,7 @@ def get_detail_bookings(request):
         "booking_number": booking.booking_id,
     }
 
-    return Response({
-        "success": True,
-        "message": "Booking details returned successfully.",
-        "data": data
-    })
+    cache.set(cache_key, data, timeout=180)
+
+    return Response({"success": True, "message": "Booking details returned successfully.", "data": data})
+

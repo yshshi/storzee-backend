@@ -17,6 +17,7 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from rest_framework import status
 import boto3
+from django.core.cache import cache
 
 # IMGHIPPO_API_KEY = os.getenv('IMGHIPPO_API_KEY')
 # IMGHIPPO_API_URL = os.getenv('IMGHIPPO_API_URL')
@@ -109,35 +110,27 @@ def register(request):
 @permission_classes([AllowAny])
 def login(request):
     email = request.data.get("email")
+
     if not email:
-        return Response({
-            "success": "Fail",
-            "message": "Email is required!"
-        }, status=400)
-    
+        return Response({"success": "Fail","message": "Email is required!"}, status=400)
+
     user = User.objects.filter(email=email).first()
 
     if not user:
-        return Response({
-            "success": "Pass",
-            "is_register": False,
-            "data": None
-        }, status=200)
-    
-    if email == 'yashkantsingh3@gmail.com':
-        otp = '123456'
-    else:
-        otp = generate_otp()
-        send_login_otp_email(user.email,otp, user.full_name)
-    user.otp = otp
-    user.otp_generated_time = timezone.now()
-    user.save()
-    # send_login_otp_email(user.email,otp, user.full_name)
+        return Response({"success": "Pass","is_register": False,"data": None}, status=200)
+
+    otp = "123456" if email == "yashkantsingh3@gmail.com" else generate_otp()
+
+    # Save OTP in Redis (5 min)
+    cache.set(f"otp:{user.id}", otp, timeout=300)
+
+    send_login_otp_email(user.email, otp, user.full_name)
+
     return Response({
-        'message': 'OTP is sent to your register email.',
-        'user_id': user.id,
+        "message": "OTP sent successfully",
+        "user_id": user.id,
         "is_register": True
-    }, status=status.HTTP_200_OK)
+    })
     
 
 
@@ -200,42 +193,29 @@ def verify_otp(request):
     user_id = request.data.get("user_id")
     otp = request.data.get("otp")
 
-    if not user_id and not otp:
-        return Response({
-            "success": "Fail",
-            "message": "User Id and Otp is required!"
-        }, status=400)
-    
+    if not user_id or not otp:
+        return Response({"success": "Fail","message": "User Id and OTP are required!"}, status=400)
+
     try:
         user = User.objects.get(id=user_id)
     except User.DoesNotExist:
-        return Response({
-            "success": "Fail",
-            "message": "User not found!"
-        }, status=404)
-    
-    if user.otp_generated_time and timezone.now() > user.otp_generated_time + timedelta(minutes=10):
-        return Response({
-            "success": "Fail",
-            "message": "OTP has expired. Please request a new one."
-        }, status=400)
+        return Response({"success": "Fail","message": "User not found!"}, status=404)
 
-    if user.otp != otp:
-        return Response({
-            "success": "Fail",
-            "message": "Invalid OTP!"
-        }, status=400)
+    saved_otp = cache.get(f"otp:{user_id}")
 
-    # Optionally: mark user as verified, clear OTP
-    user.is_verified = True  # if you have a field like this
-    user.otp = None
+    if not saved_otp:
+        return Response({"success": "Fail","message": "OTP expired or not found"}, status=400)
+
+    if saved_otp != otp:
+        return Response({"success": "Fail","message": "Invalid OTP"}, status=400)
+
+    user.is_verified = True
     user.save()
 
-    return Response({
-        "success": "Success",
-        "message": "OTP verified successfully!",
-        "user_id": user.id
-    }, status=200)
+    # Remove OTP after success
+    cache.delete(f"otp:{user_id}")
+
+    return Response({"success": "Success","message": "OTP verified","user_id": user.id}, status=200)
 
 
 @api_view(['POST'])
@@ -349,93 +329,81 @@ def update_profile(request):
 @permission_classes([AllowAny])
 def user_notification(request):
     user_id = request.query_params.get("user_id")
-    
-    if not user_id:
-        return Response({
-            "success": "Fail",
-            "message": "User ID is required."
-        }, status=400)
 
-    try:
-        user = User.objects.get(id=user_id)
-    except User.DoesNotExist:
-        return Response({
-            "success": "Fail",
-            "message": "User not found."
-        }, status=404)
-    
+    if not user_id:
+        return Response({"success": "Fail","message": "User ID is required."}, status=400)
+
+    cache_key = f"user_notifications:{user_id}"
+
+    # Try Redis first
+    data = cache.get(cache_key)
+    if data:
+        return Response({"success": "Success","data": data}, status=200)
+
     notifications = UserNotification.objects.filter(user_id=user_id).order_by('-created_at')
 
     if not notifications.exists():
-        return Response({
-            "success": "Fail",
-            "message": "No notifications found."
-        }, status=404)
+        return Response({"success": "Fail","message": "No notifications found."}, status=404)
 
-    # Convert queryset to list of dicts
-    notifications_list = [
-        {
-            "id": n.id,
-            "type": n.type,
-            "title": n.title,
-            "message": n.message,
-            "time": get_time_diff(n.created_at),
-            "isRead": n.isRead,
-            "priority": n.priority,
-            "actionRequired": n.actionRequired
-        }
-        for n in notifications
-    ]
+    data = [{
+        "id": n.id,
+        "type": n.type,
+        "title": n.title,
+        "message": n.message,
+        "time": get_time_diff(n.created_at),
+        "isRead": n.isRead,
+        "priority": n.priority,
+        "actionRequired": n.actionRequired
+    } for n in notifications]
 
-    return Response({
-        "success": "Success",
-        "data": notifications_list
-    }, status=200)
+    # Cache for 60 seconds
+    cache.set(cache_key, data, timeout=60)
+
+    return Response({"success": "Success","data": data}, status=200)
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def user_details(request):
     user_id = request.query_params.get("user_id")
-    
+
     if not user_id:
-        return Response({
-            "success": "Fail",
-            "message": "User ID is required."
-        }, status=400)
+        return Response({"success": "Fail","message": "User ID is required."}, status=400)
+
+    cache_key = f"user_details:{user_id}"
+
+    cached = cache.get(cache_key)
+    if cached:
+        return Response({"success": "Success","data": cached}, status=200)
 
     try:
         user = User.objects.get(id=user_id)
     except User.DoesNotExist:
-        return Response({
-            "success": "Fail",
-            "message": "User not found."
-        }, status=404)
-    
+        return Response({"success": "Fail","message": "User not found."}, status=404)
+
     user_documents = UserDocument.objects.filter(user_id=user_id).order_by('-created_at')
-    documents_list = [
-        {
-            "id": str(doc.id),
-            "original_name": doc.original_name,
-            "url": doc.imghippo_url,
-        }
-        for doc in user_documents
-    ]
     
-    req_body = {
-        'id': user.id,
-        'full_name': user.full_name,
-        'city_name': user.city_name,
-        'email': user.email,
-        'phone': user.phone,
-        'profile_picture': user.profile_picture,
-        'documents': documents_list if documents_list else [],
-        'longitude': user.longitude if user.longitude else None,
-        'latitude': user.latitude if user.latitude else None
+    documents_list = [{
+        "id": str(doc.id),
+        "original_name": doc.original_name,
+        "url": doc.imghippo_url,
+    } for doc in user_documents]
+
+    data = {
+        "id": user.id,
+        "full_name": user.full_name,
+        "city_name": user.city_name,
+        "email": user.email,
+        "phone": user.phone,
+        "profile_picture": user.profile_picture,
+        "documents": documents_list,
+        "longitude": user.longitude,
+        "latitude": user.latitude
     }
-    return Response({
-        "success": "Success",
-        "data": req_body
-    }, status=200)
+
+    # Cache for 5 minutes
+    cache.set(cache_key, data, timeout=300)
+
+    return Response({"success": "Success","data": data}, status=200)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
