@@ -822,6 +822,7 @@ def get_all_bookings(request):
             'luggage_image': booking.storage_image_url if booking.storage_image_url else None,
             "updated_by": booking.last_updated_by if booking.last_updated_by else None,
             "amount_updated_by": booking.amount_updated_by if booking.amount_updated_by else None,
+            "payment_status": booking.payment_status,
             "user_booked": {
                 "id": user.id,
                 "full_name": user.full_name,
