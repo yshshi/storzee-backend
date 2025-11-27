@@ -558,11 +558,11 @@ def validate_delivery(request):
 def booking_details(request):
     user_id = request.query_params.get('user_id')
 
-    cache_key = f"booking_details:{user_id}"
-    cached_data = cache.get(cache_key)
+    # cache_key = f"booking_details:{user_id}"
+    # cached_data = cache.get(cache_key)
 
-    if cached_data:
-        return Response({"success": True, "message": "Cached", "data": cached_data}, status=200)
+    # if cached_data:
+    #     return Response({"success": True, "message": "Cached", "data": cached_data}, status=200)
 
     storage_instances = StorageBooking.objects.filter(user_booked=user_id).order_by('-created_at')
 
@@ -591,7 +591,7 @@ def booking_details(request):
             "longitude": s.storage_longitude,
         })
 
-    cache.set(cache_key, data, timeout=300)  # cache for 5 minutes
+    # cache.set(cache_key, data, timeout=300)  # cache for 5 minutes
 
     return Response({
         "success": True,
