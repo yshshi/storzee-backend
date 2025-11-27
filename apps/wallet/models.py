@@ -21,6 +21,7 @@ class UserWalletTransaction(models.Model):
         ('cashback', 'Cashback'),
         ('adjustment', 'Manual Adjustment'),
         ('return_payment', 'Return Payment'),
+        ('signup_bonus', 'Signup Bonus'),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

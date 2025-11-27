@@ -18,6 +18,7 @@ from django.core.files.storage import default_storage
 from rest_framework import status
 import boto3
 from django.core.cache import cache
+from apps.wallet.models import UserWallet,UserWalletTransaction
 
 # IMGHIPPO_API_KEY = os.getenv('IMGHIPPO_API_KEY')
 # IMGHIPPO_API_URL = os.getenv('IMGHIPPO_API_URL')
@@ -87,6 +88,20 @@ def register(request):
         }
         send_otp_email(email,otp, full_name)
         user_created = User.objects.create(**req_body)
+
+        wallet_req = {
+            'user': user_created,
+            'balance': 20.00,
+        }
+        UserWallet.objects.create(**wallet_req)
+        user_wallet_txn_req = {
+            'wallet': user_created.wallet,
+            'amount': 20.00,
+            'transaction_type': 'signup_bonus',
+            'description': 'Welcome bonus for new user',
+            'is_credit': True,
+        }
+        UserWalletTransaction.objects.create(**user_wallet_txn_req)
         
         print(f'User created -- {user_created.id}')
         return Response({
@@ -211,11 +226,24 @@ def verify_otp(request):
 
     user.is_verified = True
     user.save()
+    wallet_req = {
+            'user': user,
+            'balance': 20.00,
+        }
+    UserWallet.objects.create(**wallet_req)
+    user_wallet_txn_req = {
+        'wallet': user.wallet,
+        'amount': 20.00,
+        'transaction_type': 'signup_bonus',
+        'description': 'Welcome bonus for new user',
+        'is_credit': True,
+    }
+    UserWalletTransaction.objects.create(**user_wallet_txn_req)
 
     # Remove OTP after success
     cache.delete(f"otp:{user_id}")
 
-    return Response({"success": "Success","message": "OTP verified","user_id": user.id}, status=200)
+    return Response({"success": "Success","message": "OTP verified","user_id": user.id, "bonus":20.00}, status=200)
 
 
 @api_view(['POST'])
