@@ -226,19 +226,6 @@ def verify_otp(request):
 
     user.is_verified = True
     user.save()
-    wallet_req = {
-            'user': user,
-            'balance': 20.00,
-        }
-    UserWallet.objects.create(**wallet_req)
-    user_wallet_txn_req = {
-        'wallet': user.wallet,
-        'amount': 20.00,
-        'transaction_type': 'signup_bonus',
-        'description': 'Welcome bonus for new user',
-        'is_credit': True,
-    }
-    UserWalletTransaction.objects.create(**user_wallet_txn_req)
 
     # Remove OTP after success
     cache.delete(f"otp:{user_id}")
