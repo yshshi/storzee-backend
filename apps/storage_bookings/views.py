@@ -743,17 +743,50 @@ def change_amount(request):
         "success": True,
         "message": "Amount Updated Successfully!"})
 
+@api_view(['PATCH'])
+@permission_classes([AllowAny])
+def update_paymentStatus(request):
+    storage_id = request.data.get('storage_id')
+    status = request.data.get('status')
+    updatedby = request.data.get('updatedby')
+    storage_instance = StorageBooking.objects.get(id=storage_id)
+
+    updatedby_instance = Saathi.objects.filter(id=updatedby).first()
+
+    if not storage_instance:
+        return Response({
+            "success": False,
+            "message": "No luggage found for this ID.",
+            "data": []
+        }, status=404)
+    
+    if status not in ['paid', 'unpaid']:
+        return Response({
+            "success": False,
+            "message": "Invalid payment status.",
+            "data": []
+        }, status=400)
+    
+    storage_instance.payment_status = status
+    storage_instance.amount_updated_by = updatedby_instance.full_name if updatedby_instance else None
+    storage_instance.updated_at = timezone.now()
+    storage_instance.save(update_fields=['status', 'amount_updated_by','updated_at'])
+
+    paymentInstance = Payment.objects.filter(booking=storage_instance).first()
+    if paymentInstance:
+        paymentInstance.status = status
+        paymentInstance.save(update_fields=['status'])
+
+    return Response({
+        "success": True,
+        "message": "Payment Status Updated Successfully!"})
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_all_bookings(request):
     booking_id = request.GET.get('booking_id')
 
-    cache_key = f"get_all_bookings:{booking_id if booking_id else 'all'}"
-    cached = cache.get(cache_key)
-
-    if cached:
-        return Response({"success": True, "message": "Cached", "data": cached}, status=200)
-
+    # Optimized query: one-shot load of related data
     queryset = (
         StorageBooking.objects.select_related(
             'user_booked', 'storage_unit', 'assigned_saathi', 'luggage_rakshak'
@@ -773,7 +806,7 @@ def get_all_bookings(request):
     data = []
     for booking in queryset:
         user = booking.user_booked
-        user_docs = user.user_documents.all()
+        user_docs = user.user_documents.all() if hasattr(user, 'user_documents') else []
 
         data.append({
             "id": booking.id,
@@ -786,10 +819,9 @@ def get_all_bookings(request):
             "storage_booked_location": booking.storage_booked_location,
             "storage_unit": booking.storage_unit.title if booking.storage_unit else None,
             "assigned_saathi": getattr(booking.assigned_saathi, "name", None),
-            'luggage_image': booking.storage_image_url,
-            "updated_by": booking.last_updated_by,
-            "amount_updated_by": booking.amount_updated_by,
-            "payment_status": booking.payment_status,
+            'luggage_image': booking.storage_image_url if booking.storage_image_url else None,
+            "updated_by": booking.last_updated_by if booking.last_updated_by else None,
+            "amount_updated_by": booking.amount_updated_by if booking.amount_updated_by else None,
             "user_booked": {
                 "id": user.id,
                 "full_name": user.full_name,
@@ -811,9 +843,10 @@ def get_all_bookings(request):
             }
         })
 
-    cache.set(cache_key, data, timeout=300)
-
-    return Response({"success": True, "message": "Luggage List Returned successfully!", "data": data})
+    return Response({
+        "success": True,
+        "message": "Luggage List Returned successfully!",
+        "data": data})
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
