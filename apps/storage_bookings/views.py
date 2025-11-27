@@ -8,7 +8,7 @@ from apps.users.models import User , UserDocument
 from apps.storage_units.models import StorageUnit
 from apps.storage_bookings.models import StorageBooking , BookingAddon , BookingStatusHistory
 from apps.storage_bookings.utils import get_next_bag_id,calculate_distance_km,return_type,return_status,compute_booking_end_time,parse_addons_param
-
+from apps.wallet.models import UserWallet,UserWalletTransaction
 import datetime
 from django.utils.timezone import localtime
 from rest_framework import status
@@ -658,6 +658,18 @@ def change_status(request):
     storage_instance.last_updated_by = updatedby_instance.full_name if updatedby_instance else None
     storage_instance.updated_at = timezone.now()
     storage_instance.save(update_fields=['status', 'last_updated_by', 'updated_at'])
+
+    wallet = UserWallet.objects.filter(user=storage_instance.user_booked).first()
+    if wallet:
+        wallet.balance = 0.00
+        wallet.save(update_fields=['balance'])
+        wallet_transaction = UserWalletTransaction.objects.filter(booking=storage_instance).first()
+        if wallet_transaction:
+           wallet_transaction.amount = 20.00
+           wallet_transaction.transaction_type = 'booking'
+           wallet_transaction.description = 'Amount Deducted for booking'
+           wallet_transaction.is_credit = False
+           wallet_transaction.save(update_fields=['amount','transaction_type'])
 
     booking_history = BookingStatusHistory.objects.filter(booking=storage_instance).first()
     if booking_history:
