@@ -770,7 +770,7 @@ def update_paymentStatus(request):
     storage_instance.payment_status = status
     storage_instance.amount_updated_by = updatedby_instance.full_name if updatedby_instance else None
     storage_instance.updated_at = timezone.now()
-    storage_instance.save(update_fields=['status', 'amount_updated_by','updated_at'])
+    storage_instance.save(update_fields=['payment_status', 'amount_updated_by','updated_at'])
 
     paymentInstance = Payment.objects.filter(booking=storage_instance).first()
     if paymentInstance:
