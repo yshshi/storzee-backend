@@ -256,12 +256,18 @@ def verify_otp(request):
     # Optionally: mark user as verified, clear OTP
     user.is_verified = True  # if you have a field like this
     user.otp = None
+
+    user_document_uploaded = False
+    if UserDocument.objects.filter(user=user).exists():
+        user_document_uploaded = True
+        
     user.save()
 
     return Response({
         "success": "Success",
         "message": "OTP verified successfully!",
-        "user_id": user.id
+        "user_id": user.id,
+        "user_document_uploaded": user_document_uploaded
     }, status=200)
 
 

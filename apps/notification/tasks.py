@@ -33,15 +33,11 @@ def cron_notify_booking_ending_soon():
     bookings = StorageBooking.objects.filter(
         status__in=['active', 'confirmed', 'luggage_Stored'],
         booking_end_time__gte=window_start,
-        booking_end_time__lte=window_end
+        booking_end_time__lte=window_end,
+        ending_soon_notified=False      # NEW: No duplicate checks needed
     )
 
     for booking in bookings:
-        cache_key = f"ending_soon_sent_{booking.id}"
-
-        if cache.get(cache_key):
-            continue  # Prevent duplicate notifications
-
         message = (
             "⏳ Your storage booking is ending soon! "
             "Please pick up your luggage or extend your booking."
@@ -53,7 +49,9 @@ def cron_notify_booking_ending_soon():
             message=message
         )
 
-        cache.set(cache_key, True, timeout=3600)
+        booking.ending_soon_notified = True
+        booking.save(update_fields=['ending_soon_notified'])
+
 
 @shared_task
 def cron_notify_late_pickup():
@@ -61,15 +59,11 @@ def cron_notify_late_pickup():
 
     bookings = StorageBooking.objects.filter(
         booking_end_time__lt=current_time,
-        status__in=['active', 'confirmed', 'luggage_Stored']
+        status__in=['active', 'confirmed', 'luggage_Stored'],
+        late_pickup_notified=False    # NEW
     )
 
     for booking in bookings:
-        cache_key = f"late_pickup_sent_{booking.id}"
-
-        if cache.get(cache_key):
-            continue
-
         message = (
             "⚠️ Your booking time has ended. Please pick up your luggage. "
             "Additional charges may apply for late pickup."
@@ -81,7 +75,8 @@ def cron_notify_late_pickup():
             message=message
         )
 
-        cache.set(cache_key, True, timeout=86400)
+        booking.late_pickup_notified = True
+        booking.save(update_fields=['late_pickup_notified'])
 
 @shared_task
 def send_starting_notification():
@@ -137,3 +132,35 @@ def send_post_notification():
         send_push_notification(t.token, title, body)
 
     return "Notifications sent!"
+
+@shared_task
+def cron_auto_cancel_unstored_bookings():
+    """
+    Cancel bookings that were confirmed but never moved to 'luggage_Stored'
+    within 2 hours from booking_start_time.
+    """
+    current_time = now()
+    two_hours_ago = current_time - timedelta(hours=2)
+
+    # Bookings that are confirmed for more than 2 hours
+    bookings = StorageBooking.objects.filter(
+        status="confirmed",
+        booking_start_time__lte=two_hours_ago
+    )
+
+    for booking in bookings:
+        booking.status = "cancelled"
+        booking.save(update_fields=["status"])
+
+        # Optional: notify user
+        try:
+            from utils.trigger_notiifcation import send_push_notification
+            send_push_notification(
+                user=booking.user_booked,
+                title="Booking Cancelled",
+                message="Your booking was cancelled because luggage was not stored within 2 hours."
+            )
+        except Exception as e:
+            print("Notification error:", e)
+
+    return f"{bookings.count()} bookings auto-cancelled"

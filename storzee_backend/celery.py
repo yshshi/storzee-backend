@@ -54,4 +54,8 @@ app.conf.beat_schedule = {
         'task': 'apps.notification.tasks.cron_notify_late_pickup',
         'schedule': crontab(minute="*/20"),
     },
+    'run-cancelbooking': {
+        'task': 'apps.notification.tasks.cron_auto_cancel_unstored_bookings',
+        'schedule': crontab(minute="*/20"),
+    },
 }

@@ -50,6 +50,9 @@ class StorageBooking(MyBaseModel):
     last_updated_by = models.CharField(max_length=100, blank=True, null=True)
     amount_updated_by = models.CharField(max_length=100, blank=True, null=True)
     payment_status = models.CharField(max_length=50, default='pending')
+    ending_soon_notified = models.BooleanField(default=False)
+    late_pickup_notified = models.BooleanField(default=False)
+
 
     def __str__(self):
         return f"{self.user.full_name} → {self.storage_unit.title} [{self.status}]"
