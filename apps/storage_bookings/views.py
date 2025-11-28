@@ -105,6 +105,9 @@ def create_booking(request):
             total_amount = Decimal(storage_unit.price_per_hour) * Decimal(total_hours)
             total_amount = round(total_amount)
 
+            if amount:
+                total_amount = Decimal(amount)
+
             booking = StorageBooking.objects.create(
                 user_booked=user,
                 storage_unit=storage_unit,
