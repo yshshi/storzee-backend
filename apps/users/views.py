@@ -397,6 +397,10 @@ def update_profile(request):
 
     user.save()
 
+    user_document_uploaded = False
+    if UserDocument.objects.filter(user=user).exists():
+        user_document_uploaded = True
+
     return Response({
         "success": "Success",
         "message": "Profile updated successfully.",
@@ -406,6 +410,7 @@ def update_profile(request):
             "phone": user.phone,
             "latitude": user.latitude,
             "longitude": user.longitude,
+            "document_uploaded": user_document_uploaded
         }
     }, status=200)
 
