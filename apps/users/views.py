@@ -72,6 +72,18 @@ def register(request):
     if not role:
         role = 'user'
 
+    if User.objects.filter(email=email).exists():
+        return Response({ 
+            "success": "Fail",
+            "message": "Email already registered!"
+        }, status=400)
+    
+    if User.objects.filter(phone=phone).exists():
+        return Response({ 
+            "success": "Fail",
+            "message": "Phone number already registered!"
+        }, status=400)
+
     try:
         
         otp = generate_otp()
