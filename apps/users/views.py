@@ -137,28 +137,35 @@ def register(request):
 @permission_classes([AllowAny])
 def login(request):
     email = request.data.get("email")
-
     if not email:
-        return Response({"success": "Fail","message": "Email is required!"}, status=400)
-
+        return Response({
+            "success": "Fail",
+            "message": "Email is required!"
+        }, status=400)
+    
     user = User.objects.filter(email=email).first()
 
     if not user:
-        return Response({"success": "Pass","is_register": False,"data": None}, status=200)
-
-    otp = "123456" if email == "yashkantsingh3@gmail.com" else generate_otp()
-
-    # Save OTP in Redis (5 min)
-    cache.set(f"otp:{user.id}", otp, timeout=300)
-
-    send_login_otp_email(user.email, otp, user.full_name)
-
-    return Response({
-        "message": "OTP sent successfully",
-        "user_id": user.id,
-        "is_register": True
-    })
+        return Response({
+            "success": "Pass",
+            "is_register": False,
+            "data": None
+        }, status=200)
     
+    if email == 'yashkantsingh3@gmail.com':
+        otp = '123456'
+    else:
+        otp = generate_otp()
+        send_login_otp_email(user.email,otp, user.full_name)
+    user.otp = otp
+    user.otp_generated_time = timezone.now()
+    user.save()
+    # send_login_otp_email(user.email,otp, user.full_name)
+    return Response({
+        'message': 'OTP is sent to your register email.',
+        'user_id': user.id,
+        "is_register": True
+    }, status=status.HTTP_200_OK)
 
 
     # if not email_phone:
