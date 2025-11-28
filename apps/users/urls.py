@@ -1,6 +1,6 @@
 from django.urls import path, re_path
 from rest_framework.routers import DefaultRouter
-from .views import register,login,verify_otp,update_profile,update_profile_picture,user_details,user_notification,user_document_upload
+from .views import register,login,verify_otp,update_profile,update_profile_picture,user_details,user_notification,user_document_upload,resend_otp
 router = DefaultRouter(trailing_slash=False)
 
 
@@ -14,6 +14,7 @@ urlpatterns = [
     re_path(r'^user_details', user_details, name='user_details'),
     re_path(r'^user_notification', user_notification, name='user_notification'),
     re_path(r'^user_document_upload', user_document_upload, name='user_document_upload'),
+    re_path(r'^resend_otp', resend_otp, name='resend_otp'),
 
 
     *router.urls

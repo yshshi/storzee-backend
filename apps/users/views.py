@@ -208,29 +208,73 @@ def verify_otp(request):
     user_id = request.data.get("user_id")
     otp = request.data.get("otp")
 
-    if not user_id or not otp:
-        return Response({"success": "Fail","message": "User Id and OTP are required!"}, status=400)
-
+    if not user_id and not otp:
+        return Response({
+            "success": "Fail",
+            "message": "User Id and Otp is required!"
+        }, status=400)
+    
     try:
         user = User.objects.get(id=user_id)
     except User.DoesNotExist:
-        return Response({"success": "Fail","message": "User not found!"}, status=404)
+        return Response({
+            "success": "Fail",
+            "message": "User not found!"
+        }, status=404)
+    
+    if user.otp_generated_time and timezone.now() > user.otp_generated_time + timedelta(minutes=10):
+        return Response({
+            "success": "Fail",
+            "message": "OTP has expired. Please request a new one."
+        }, status=400)
 
-    saved_otp = cache.get(f"otp:{user_id}")
+    if user.otp != otp:
+        return Response({
+            "success": "Fail",
+            "message": "Invalid OTP!"
+        }, status=400)
 
-    if not saved_otp:
-        return Response({"success": "Fail","message": "OTP expired or not found"}, status=400)
-
-    if saved_otp != otp:
-        return Response({"success": "Fail","message": "Invalid OTP"}, status=400)
-
-    user.is_verified = True
+    # Optionally: mark user as verified, clear OTP
+    user.is_verified = True  # if you have a field like this
+    user.otp = None
     user.save()
 
-    # Remove OTP after success
-    cache.delete(f"otp:{user_id}")
+    return Response({
+        "success": "Success",
+        "message": "OTP verified successfully!",
+        "user_id": user.id
+    }, status=200)
 
-    return Response({"success": "Success","message": "OTP verified","user_id": user.id, "bonus":20.00}, status=200)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def resend_otp(request):
+    user_id = request.data.get("user_id")
+
+    if not user_id:
+        return Response({
+            "success": "Fail",
+            "message": "User Id is required!"
+        }, status=400)
+    
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response({
+            "success": "Fail",
+            "message": "User not found!"
+        }, status=404)
+    
+    otp = generate_otp()
+    user.otp = otp
+    user.otp_generated_time = timezone.now()
+    user.save()
+    send_otp_email(user.email,otp, user.full_name)
+
+    return Response({
+        "success": "Success",
+        "message": "OTP resent successfully!"
+    }, status=200)
 
 
 @api_view(['POST'])
