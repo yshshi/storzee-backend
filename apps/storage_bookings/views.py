@@ -708,6 +708,16 @@ def change_status(request):
             title = '💳 Payment Received'
             type = 'payment'
             body = f"🙏 Thanks {storage_instance.user_booked.full_name}! Your payment has been successfully received. We appreciate your trust in us."
+            wallet = UserWallet.objects.filter(user=storage_instance.user_booked).first()
+            if wallet:
+                wallet_transaction = UserWalletTransaction.objects.filter(wallet=wallet).first()
+                if wallet_transaction:
+                   wallet_transaction.amount = 0.00
+                   wallet_transaction.transaction_type = 'booking'
+                   wallet_transaction.description = 'Amount Deducted or Expired for booking'
+                   wallet_transaction.is_credit = False
+                   wallet_transaction.related_booking = storage_instance
+                   wallet_transaction.save(update_fields=['amount','transaction_type','description','is_credit', 'related_booking'])
         booking_history.save()
 
         token = UserDeviceToken.objects.filter(user=storage_instance.user_booked).first()
