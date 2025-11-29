@@ -609,18 +609,16 @@ def booking_details(request):
 def booking_status(request):
     storage_id = request.query_params.get('storage_id')
 
-    cache_key = f"booking_status:{storage_id}"
-    cached = cache.get(cache_key)
-    
-    if cached:
-        return Response({"success": True, "message": "Cached", "data": cached}, status=200)
-
     storage_instance = BookingStatusHistory.objects.filter(
         booking__id=storage_id
     ).first()
 
     if not storage_instance:
-        return Response({"success": False, "message": "No luggage found.", "data": []}, status=404)
+        return Response({
+            "success": False,
+            "message": "No luggage found for this ID.",
+            "data": []
+        }, status=404)
 
     data = {
         "id": storage_instance.id,
@@ -636,9 +634,11 @@ def booking_status(request):
         "booking_cancelled_at": storage_instance.booking_cancelled_at,
     }
 
-    cache.set(cache_key, data, timeout=120)  # 2 minutes
-
-    return Response({"success": True, "message": "Luggage Found!", "data": data})
+    return Response({
+        "success": True,
+        "message": "Luggage Found!",
+        "data": data
+    })
 
 
 @api_view(['PATCH'])
