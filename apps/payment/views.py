@@ -500,47 +500,55 @@ def calculate_return_payment(request):
 
     if not booking_id:
         return Response({'error': 'booking_id is required'}, status=400)
-    booking = StorageBooking.objects.filter(id=booking_id).first()
+
+    booking = StorageBooking.objects.filter(id=booking_id).select_related("storage_unit").first()
     if not booking:
-        return Response({"success": False, "message": "Booking not found."}, status=404)    
-    
+        return Response({"success": False, "message": "Booking not found."}, status=404)
+
     if booking.status in ['completed', 'cancelled']:
         return Response({'error': 'Return cannot be initiated for current booking status.'}, status=400)
-    
-    # storageInstance = booking.storage_unit
 
     start = booking.booking_created_time
     end = booking.booking_end_time
+    now = timezone.now()
 
-    diff = end - start
+    # Booking still active → calculate hourly charge till now
+    if end > now:
+        diff = now - start
+    else:
+        diff = end - start
+
     total_hours = diff.total_seconds() / 3600
 
-    # total_amount = Decimal(storageInstance.price_per_hour) * Decimal(total_hours)
-    # total_amount = round(total_amount)
+    if total_hours < float(booking.booked_time):
+        total_hours = booking.booked_time
+        total_amount = Decimal(booking.amount)
+    else:
+        # Base price from storage unit
+        total_amount = 0
 
-    addons = BookingAddon.objects.filter(booking=booking).select_related("addon")
-    addon_total = Decimal(0)
+        # Addons
+        addons = BookingAddon.objects.filter(booking=booking).select_related("addon")
+        for item in addons:
+            addon_price = Decimal(item.addon.base_price)
+            addon_amount = addon_price * Decimal(total_hours)
+            total_amount += addon_amount
 
-    if not addons.exists():
-        addon_total = Decimal(booking.storage_unit.price_per_hour) * Decimal(total_hours)
-        addon_total = round(addon_total)
-    for item in addons:
-        addon_price = Decimal(item.addon.base_price)
-        addon_amount = addon_price * Decimal(total_hours)
-        addon_total += addon_amount
+        total_amount = round(total_amount)
 
-    booking.amount = addon_total
-    booking.save(update_fields=['amount'])
+        # Update Booking & Payment
+        booking.amount = total_amount
+        booking.save(update_fields=['amount'])
 
-    paymentInstance = Payment.objects.filter(booking=booking).first()
-    if paymentInstance:
-        paymentInstance.amount = addon_total
-        paymentInstance.save(update_fields=['amount'])
+    payment_instance = Payment.objects.filter(booking=booking).first()
+    if payment_instance:
+        payment_instance.amount = total_amount
+        payment_instance.save(update_fields=['amount'])
 
     return Response({
-            'amount': addon_total,
-            'hours': total_hours,
-            'razorpay_enabled': env('RAZORPAY_ENABLE', default=True),
-            'storage_latitude': booking.storage_unit.latitude,
-            'storage_longitude': booking.storage_unit.longitude
-        })
+        'amount': total_amount,
+        'hours': total_hours,
+        'razorpay_enabled': env('RAZORPAY_ENABLE', default=True),
+        'storage_latitude': booking.storage_unit.latitude,
+        'storage_longitude': booking.storage_unit.longitude
+    })

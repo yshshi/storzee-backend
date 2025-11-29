@@ -123,7 +123,8 @@ def create_booking(request):
                 storage_latitude=latitude,
                 storage_image_url=file_url,
                 storage_longitude=longitude,
-                updated_at=start_time
+                updated_at=start_time,
+                booked_time=luggage_time
             )
 
             if addons_param:
