@@ -221,9 +221,9 @@ def verify_saathi_otp(request):
         }, status=400)
 
     # Optionally: mark user as verified, clear OTP
-    user.is_verified = True  # if you have a field like this
-    user.otp = None
-    user.save()
+    # user.is_verified = True  # if you have a field like this
+    # user.otp = None
+    # user.save()
 
     response_body = {
         'saathi_id': user.id,
