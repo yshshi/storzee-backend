@@ -247,15 +247,15 @@ def send_login_otp_email(email, otp, user_name):
   <div class="email-container">
     <a href='https://postimg.cc/4nhRDnp1' target='_blank'><img src='https://storezee-bucket.s3.ap-south-1.amazonaws.com/assests/storezee_logo.png' border='0' alt='storzee-icon'/></a>
     <!-- <img src="https://ibb.co/HfNb3QJ1" alt="Storezee Shathi" class="logo"> -->
-    <h2>Welcome back to <strong>Storzee</strong> {{user}} 👋</h2>
-    <p>Use the OTP below to login into your storzee account:</p>
+    <h2>Welcome back to <strong>Storezee</strong> {{user}} 👋</h2>
+    <p>Use the OTP below to login into your Storezee account:</p>
 
     <div class="otp">{{otp}}</div>
 
     <p>This OTP is valid for <strong>10 minutes</strong>. Do not share it with anyone.</p>
     
     <div class="footer">
-      Need help? Contact us at <a href="mailto:info@thestorzee.com">support@storezee.com</a>
+      Need help? Contact us at <a href="mailto:info@thestorezee.com">support@storezee.com</a>
     </div>
   </div>
 </body>
@@ -343,7 +343,7 @@ def send_otp_email(email, otp, user_name):
   <div class="email-container">
     <a href='https://postimg.cc/4nhRDnp1' target='_blank'><img src='https://storezee-bucket.s3.ap-south-1.amazonaws.com/assests/storezee_logo.png' border='0' alt='storzee-icon'/></a>
     <!-- <img src="https://ibb.co/HfNb3QJ1" alt="Storezee Shathi" class="logo"> -->
-    <h2>Welcome to <strong>Storzee</strong> 👋</h2>
+    <h2>Welcome to <strong>Storezee</strong> 👋</h2>
     <p>Use the OTP below to verify your email and get started:</p>
 
     <div class="otp">{{otp}}</div>
@@ -351,7 +351,7 @@ def send_otp_email(email, otp, user_name):
     <p>This OTP is valid for <strong>10 minutes</strong>. Do not share it with anyone.</p>
     
     <div class="footer">
-      Need help? Contact us at <a href="mailto:info@thestorzee.com">info@thestorezee.com</a>
+      Need help? Contact us at <a href="mailto:info@thestorezee.com">info@thestorezee.com</a>
     </div>
   </div>
 </body>
@@ -362,7 +362,7 @@ def send_otp_email(email, otp, user_name):
     body = body.replace('{{otp}}', otp)
 
     msg = EmailMessage()
-    msg['Subject'] = f"Ding Dong 🛎️ Hey {user_name}, your Storzee OTP is here!"
+    msg['Subject'] = f"Ding Dong 🛎️ Hey {user_name}, your Storezee OTP is here!"
     msg['From'] = from_email
     msg['To'] = email
 
