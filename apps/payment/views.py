@@ -203,6 +203,8 @@ from django.utils import timezone
 from utils.trigger_notiifcation import send_ayncpush_notification
 from apps.users.models import UserDeviceToken
 import asyncio
+from datetime import timedelta
+
 
 
 # Initialize Razorpay client
@@ -512,42 +514,61 @@ def calculate_return_payment(request):
     end = booking.booking_end_time
     now = timezone.now()
 
-    # Booking still active → calculate hourly charge till now
-    if end > now:
-        diff = now - start
-    else:
-        diff = end - start
+    original_amount = Decimal(booking.amount)
+    booked_hours = Decimal(str(booking.booked_time))
 
-    total_hours = diff.total_seconds() / 3600
+    # 1-hour grace period after booking end
+    grace_end = end + timedelta(hours=1)
 
-    if total_hours < float(booking.booked_time):
-        total_hours = booking.booked_time
-        total_amount = Decimal(booking.amount)
-    else:
-        # Base price from storage unit
-        total_amount = 0
+    # CASE 1 — Returning before booking end → No extra
+    if now <= end:
+        return Response({
+            'amount': original_amount,
+            'hours': float(booked_hours),
+            'extra_hours': 0,
+            'razorpay_enabled': env('RAZORPAY_ENABLE', default=True),
+            'storage_latitude': booking.storage_unit.latitude,
+            'storage_longitude': booking.storage_unit.longitude
+        })
 
-        # Addons
-        addons = BookingAddon.objects.filter(booking=booking).select_related("addon")
-        for item in addons:
-            addon_price = Decimal(item.addon.base_price)
-            addon_amount = addon_price * Decimal(total_hours)
-            total_amount += addon_amount
+    # CASE 2 — Returning within grace period → No extra
+    if end < now <= grace_end:
+        return Response({
+            'amount': original_amount,
+            'hours': float(booked_hours),
+            'extra_hours': 0,
+            'razorpay_enabled': env('RAZORPAY_ENABLE', default=True),
+            'storage_latitude': booking.storage_unit.latitude,
+            'storage_longitude': booking.storage_unit.longitude
+        })
 
-        total_amount = round(total_amount)
+    # CASE 3 — Returning after grace → Addon-based extra charges
+    extra_diff = now - grace_end
+    extra_hours = Decimal(extra_diff.total_seconds()) / Decimal(3600)
 
-        # Update Booking & Payment
-        booking.amount = total_amount
-        booking.save(update_fields=['amount'])
+    extra_amount = Decimal(0)
+
+    addons = BookingAddon.objects.filter(booking=booking).select_related("addon")
+    for item in addons:
+        addon_price = Decimal(item.addon.base_price)
+        extra_amount += addon_price * extra_hours
+
+    extra_amount = round(extra_amount)
+    final_amount = original_amount + extra_amount
+
+    # Update amount in DB
+    booking.amount = final_amount
+    booking.save(update_fields=['amount'])
 
     payment_instance = Payment.objects.filter(booking=booking).first()
     if payment_instance:
-        payment_instance.amount = total_amount
+        payment_instance.amount = final_amount
         payment_instance.save(update_fields=['amount'])
 
     return Response({
-        'amount': total_amount,
-        'hours': total_hours,
+        'amount': final_amount,
+        'hours': float(booked_hours + extra_hours),
+        'extra_hours': float(extra_hours),
         'razorpay_enabled': env('RAZORPAY_ENABLE', default=True),
         'storage_latitude': booking.storage_unit.latitude,
         'storage_longitude': booking.storage_unit.longitude
