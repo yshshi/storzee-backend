@@ -666,12 +666,13 @@ def change_status(request):
     if wallet:
         wallet.balance = 0.00
         wallet.save(update_fields=['balance'])
-        wallet_transaction = UserWalletTransaction.objects.filter(booking=storage_instance).first()
+        wallet_transaction = UserWalletTransaction.objects.filter(wallet=wallet).first()
         if wallet_transaction:
            wallet_transaction.amount = 20.00
            wallet_transaction.transaction_type = 'booking'
            wallet_transaction.description = 'Amount Deducted for booking'
            wallet_transaction.is_credit = False
+           wallet_transaction.related_booking = storage_instance
            wallet_transaction.save(update_fields=['amount','transaction_type'])
 
     booking_history = BookingStatusHistory.objects.filter(booking=storage_instance).first()
