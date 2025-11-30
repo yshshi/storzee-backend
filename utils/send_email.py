@@ -5,6 +5,7 @@ from django.template.loader import render_to_string
 import smtplib, ssl
 from email.message import EmailMessage
 import os
+from datetime import datetime
 # Initialize environment variables
 
 port = os.getenv('ZOHO_SMTP_PORT')
@@ -367,6 +368,122 @@ def send_otp_email(email, otp, user_name):
     msg['To'] = email
 
     # Add HTML body
+    msg.add_alternative(body, subtype='html')
+
+    try:
+        port_int = int(port)
+
+        if port_int == 465:
+            context = ssl.create_default_context()
+            with smtplib.SMTP_SSL(smtp_server, port_int, context=context) as server:
+                server.login(username, password)
+                server.send_message(msg)
+
+        elif port_int == 587:
+            with smtplib.SMTP(smtp_server, port_int) as server:
+                server.starttls()
+                server.login(username, password)
+                server.send_message(msg)
+
+        else:
+            print("use 465 / 587 as port value")
+            return
+
+        print("Email successfully sent!")
+
+    except Exception as e:
+        print("Email error:", e)
+
+
+def send_return_confirmation_email(email, user_name, booking_id, phone, amount):
+    body = '''
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Return Confirmation</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f4f6f8;
+      color: #333;
+      padding: 20px;
+    }
+    .email-container {
+      max-width: 650px;
+      margin: auto;
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      padding: 30px;
+    }
+    h2 {
+      color: #007bff;
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+    p {
+      font-size: 15px;
+      color: #444;
+      line-height: 1.6;
+      margin-bottom: 8px;
+    }
+    .footer {
+      margin-top: 30px;
+      font-size: 12px;
+      text-align: center;
+      color: #888;
+    }
+    .logo {
+      width: 80px;
+      height: 80px;
+      margin-bottom: 10px;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+
+    <img class="logo" src="https://storezee-bucket.s3.ap-south-1.amazonaws.com/assests/storezee_logo.png" alt="Storezee Logo"/>
+
+    <h2>Your Luggage Has Been Returned ✔️</h2>
+
+    <p>Dear <strong>{{name}}</strong>,</p>
+
+    <p>Your stored items have been successfully returned from <strong>Storezee</strong>.</p>
+
+    <p><strong>Booking ID:</strong> {{booking_id}}</p>
+    <p><strong>Phone:</strong> {{phone}}</p>
+    <p><strong>Email:</strong> {{email}}</p>
+    <p><strong>Final Amount:</strong> ₹{{amount}}</p>
+
+    <p>Thank you for trusting Storezee with your luggage. We hope you had a smooth experience.</p>
+
+    <div class="footer">
+      Storezee © {{year}}
+    </div>
+
+  </div>
+</body>
+</html>
+    '''
+
+    # Replace template values
+    body = body.replace('{{name}}', user_name)
+    body = body.replace('{{booking_id}}', str(booking_id))
+    body = body.replace('{{phone}}', phone)
+    body = body.replace('{{email}}', email)
+    body = body.replace('{{amount}}', str(amount))
+    body = body.replace('{{year}}', str(datetime.now().year))
+
+    msg = EmailMessage()
+    msg['Subject'] = f"Hey {user_name}, your Storezee return confirmation is here ✔️"
+    msg['From'] = from_email
+    msg['To'] = email
+
     msg.add_alternative(body, subtype='html')
 
     try:
