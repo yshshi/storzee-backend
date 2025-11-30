@@ -85,7 +85,7 @@ def saathi_login(request):
     
     # otp = generate_otp()
     # user_instance.otp = otp
-    user_instance.otp_generated_time = timezone.now()
+    # user_instance.otp_generated_time = timezone.now()
     # user_instance.save()
     # if env('ENV')=='Prod':
     #     send_login_otp_email(user_instance.email,otp, user_instance.full_name)
@@ -93,8 +93,8 @@ def saathi_login(request):
     #     user_instance.otp = '123456'
     #     user_instance.save()
 
-    user_instance.otp = '123456'
-    user_instance.save()
+    # user_instance.otp = '123456'
+    # user_instance.save()
 
     response_body = {
         'saathi_id': user_instance.id,
@@ -208,11 +208,11 @@ def verify_saathi_otp(request):
             "message": "User not found!"
         }, status=404)
     
-    if user.otp_generated_time and timezone.now() > user.otp_generated_time + timedelta(minutes=10):
-        return Response({
-            "success": "Fail",
-            "message": "OTP has expired. Please request a new one."
-        }, status=400)
+    # if user.otp_generated_time and timezone.now() > user.otp_generated_time + timedelta(minutes=10):
+    #     return Response({
+    #         "success": "Fail",
+    #         "message": "OTP has expired. Please request a new one."
+    #     }, status=400)
 
     if user.otp != otp:
         return Response({
@@ -221,9 +221,9 @@ def verify_saathi_otp(request):
         }, status=400)
 
     # Optionally: mark user as verified, clear OTP
-    user.is_verified = True  # if you have a field like this
-    user.otp = None
-    user.save()
+    # user.is_verified = True  # if you have a field like this
+    # user.otp = None
+    # user.save()
 
     response_body = {
         'saathi_id': user.id,

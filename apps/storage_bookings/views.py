@@ -124,7 +124,8 @@ def create_booking(request):
                 storage_latitude=latitude,
                 storage_image_url=file_url,
                 storage_longitude=longitude,
-                updated_at=start_time
+                updated_at=start_time,
+                booked_time=luggage_time
             )
 
             if addons_param:
@@ -609,18 +610,16 @@ def booking_details(request):
 def booking_status(request):
     storage_id = request.query_params.get('storage_id')
 
-    cache_key = f"booking_status:{storage_id}"
-    cached = cache.get(cache_key)
-    
-    if cached:
-        return Response({"success": True, "message": "Cached", "data": cached}, status=200)
-
     storage_instance = BookingStatusHistory.objects.filter(
         booking__id=storage_id
     ).first()
 
     if not storage_instance:
-        return Response({"success": False, "message": "No luggage found.", "data": []}, status=404)
+        return Response({
+            "success": False,
+            "message": "No luggage found for this ID.",
+            "data": []
+        }, status=404)
 
     data = {
         "id": storage_instance.id,
@@ -636,9 +635,11 @@ def booking_status(request):
         "booking_cancelled_at": storage_instance.booking_cancelled_at,
     }
 
-    cache.set(cache_key, data, timeout=120)  # 2 minutes
-
-    return Response({"success": True, "message": "Luggage Found!", "data": data})
+    return Response({
+        "success": True,
+        "message": "Luggage Found!",
+        "data": data
+    })
 
 
 @api_view(['PATCH'])
@@ -667,13 +668,14 @@ def change_status(request):
     if wallet:
         wallet.balance = 0.00
         wallet.save(update_fields=['balance'])
-        wallet_transaction = UserWalletTransaction.objects.filter(booking=storage_instance).first()
+        wallet_transaction = UserWalletTransaction.objects.filter(wallet=wallet).first()
         if wallet_transaction:
            wallet_transaction.amount = 20.00
            wallet_transaction.transaction_type = 'booking'
            wallet_transaction.description = 'Amount Deducted for booking'
            wallet_transaction.is_credit = False
-           wallet_transaction.save(update_fields=['amount','transaction_type'])
+           wallet_transaction.related_booking = storage_instance
+           wallet_transaction.save(update_fields=['amount','transaction_type','description','is_credit', 'related_booking'])
 
     booking_history = BookingStatusHistory.objects.filter(booking=storage_instance).first()
     if booking_history:
@@ -708,6 +710,16 @@ def change_status(request):
             title = '💳 Payment Received'
             type = 'payment'
             body = f"🙏 Thanks {storage_instance.user_booked.full_name}! Your payment has been successfully received. We appreciate your trust in us."
+            # wallet = UserWallet.objects.filter(user=storage_instance.user_booked).first()
+            # if wallet:
+            #     wallet_transaction = UserWalletTransaction.objects.filter(wallet=wallet).first()
+            #     if wallet_transaction:
+            #        wallet_transaction.amount = 0.00
+            #        wallet_transaction.transaction_type = 'booking'
+            #        wallet_transaction.description = 'Amount Deducted or Expired for booking'
+            #        wallet_transaction.is_credit = False
+            #        wallet_transaction.related_booking = storage_instance
+            #        wallet_transaction.save(update_fields=['amount','transaction_type','description','is_credit', 'related_booking'])
         booking_history.save()
 
         token = UserDeviceToken.objects.filter(user=storage_instance.user_booked).first()

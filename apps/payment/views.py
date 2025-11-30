@@ -203,6 +203,8 @@ from django.utils import timezone
 from utils.trigger_notiifcation import send_ayncpush_notification
 from apps.users.models import UserDeviceToken
 import asyncio
+from datetime import timedelta
+
 
 
 # Initialize Razorpay client
@@ -500,47 +502,74 @@ def calculate_return_payment(request):
 
     if not booking_id:
         return Response({'error': 'booking_id is required'}, status=400)
-    booking = StorageBooking.objects.filter(id=booking_id).first()
+
+    booking = StorageBooking.objects.filter(id=booking_id).select_related("storage_unit").first()
     if not booking:
-        return Response({"success": False, "message": "Booking not found."}, status=404)    
-    
+        return Response({"success": False, "message": "Booking not found."}, status=404)
+
     if booking.status in ['completed', 'cancelled']:
         return Response({'error': 'Return cannot be initiated for current booking status.'}, status=400)
-    
-    # storageInstance = booking.storage_unit
 
     start = booking.booking_created_time
     end = booking.booking_end_time
+    now = timezone.now()
 
-    diff = end - start
-    total_hours = diff.total_seconds() / 3600
+    original_amount = Decimal(booking.amount)
+    booked_hours = Decimal(str(booking.booked_time))
 
-    # total_amount = Decimal(storageInstance.price_per_hour) * Decimal(total_hours)
-    # total_amount = round(total_amount)
+    # 1-hour grace period after booking end
+    grace_end = end + timedelta(hours=1)
 
-    addons = BookingAddon.objects.filter(booking=booking).select_related("addon")
-    addon_total = Decimal(0)
-
-    if not addons.exists():
-        addon_total = Decimal(booking.storage_unit.price_per_hour) * Decimal(total_hours)
-        addon_total = round(addon_total)
-    for item in addons:
-        addon_price = Decimal(item.addon.base_price)
-        addon_amount = addon_price * Decimal(total_hours)
-        addon_total += addon_amount
-
-    booking.amount = addon_total
-    booking.save(update_fields=['amount'])
-
-    paymentInstance = Payment.objects.filter(booking=booking).first()
-    if paymentInstance:
-        paymentInstance.amount = addon_total
-        paymentInstance.save(update_fields=['amount'])
-
-    return Response({
-            'amount': addon_total,
-            'hours': total_hours,
+    # CASE 1 — Returning before booking end → No extra
+    if now <= end:
+        return Response({
+            'amount': original_amount,
+            'hours': float(booked_hours),
+            'extra_hours': 0,
             'razorpay_enabled': env('RAZORPAY_ENABLE', default=True),
             'storage_latitude': booking.storage_unit.latitude,
             'storage_longitude': booking.storage_unit.longitude
         })
+
+    # CASE 2 — Returning within grace period → No extra
+    if end < now <= grace_end:
+        return Response({
+            'amount': original_amount,
+            'hours': float(booked_hours),
+            'extra_hours': 0,
+            'razorpay_enabled': env('RAZORPAY_ENABLE', default=True),
+            'storage_latitude': booking.storage_unit.latitude,
+            'storage_longitude': booking.storage_unit.longitude
+        })
+
+    # CASE 3 — Returning after grace → Addon-based extra charges
+    extra_diff = now - grace_end
+    extra_hours = Decimal(extra_diff.total_seconds()) / Decimal(3600)
+
+    extra_amount = Decimal(0)
+
+    addons = BookingAddon.objects.filter(booking=booking).select_related("addon")
+    for item in addons:
+        addon_price = Decimal(item.addon.base_price)
+        extra_amount += addon_price * extra_hours
+
+    extra_amount = round(extra_amount)
+    final_amount = original_amount + extra_amount
+
+    # Update amount in DB
+    booking.amount = final_amount
+    booking.save(update_fields=['amount'])
+
+    payment_instance = Payment.objects.filter(booking=booking).first()
+    if payment_instance:
+        payment_instance.amount = final_amount
+        payment_instance.save(update_fields=['amount'])
+
+    return Response({
+        'amount': final_amount,
+        'hours': float(booked_hours + extra_hours),
+        'extra_hours': float(extra_hours),
+        'razorpay_enabled': env('RAZORPAY_ENABLE', default=True),
+        'storage_latitude': booking.storage_unit.latitude,
+        'storage_longitude': booking.storage_unit.longitude
+    })

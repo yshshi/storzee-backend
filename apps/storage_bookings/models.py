@@ -52,6 +52,7 @@ class StorageBooking(MyBaseModel):
     payment_status = models.CharField(max_length=50, default='pending')
     ending_soon_notified = models.BooleanField(default=False)
     late_pickup_notified = models.BooleanField(default=False)
+    booked_time = models.CharField(max_length=100,blank=True, null=True)
 
 
     def __str__(self):
