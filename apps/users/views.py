@@ -654,7 +654,7 @@ def get_partner_units(request):
         return Response({"success": "Fail", "message": "User is not a partner."}, status=403)
 
     # Fetch mapped unit IDs
-    mapped_units = PartnerUnitMapping.objects.filter(user=user).values_list("unit_id", flat=True)
+    mapped_units = PartnerUnitMapping.objects.filter(user=user).values_list("unit", flat=True)
 
     # Fetch actual StorageUnit objects
     units = StorageUnit.objects.filter(id__in=mapped_units)
