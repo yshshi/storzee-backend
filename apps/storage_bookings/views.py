@@ -32,6 +32,7 @@ from apps.users.models import UserDeviceToken,UserNotification
 import asyncio
 from django.core.cache import cache
 from utils.send_email import send_return_confirmation_email
+from django.db.models import Sum
 
 MAX_BOOKING_TIME = os.getenv('MAX_BOOKING_TIME')
 # Create your views here.
@@ -810,12 +811,17 @@ def update_paymentStatus(request):
         "success": True,
         "message": "Payment Status Updated Successfully!"})
 
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_all_bookings(request):
     booking_id = request.GET.get('booking_id')
+    unit_id = request.GET.get('unit_id')          # NEW
+    user_name = request.GET.get('user_name')      # NEW
+    phone = request.GET.get('phone')
+    email = request.GET.get('email')
 
-    # Optimized query: one-shot load of related data
+    # Base optimized queryset
     queryset = (
         StorageBooking.objects.select_related(
             'user_booked', 'storage_unit', 'assigned_saathi', 'luggage_rakshak'
@@ -823,19 +829,44 @@ def get_all_bookings(request):
         .prefetch_related(
             Prefetch(
                 'user_booked__user_documents',
-                queryset=UserDocument.objects.only('id', 'original_name', 'imghippo_url', 'created_at')
+                queryset=UserDocument.objects.only(
+                    'id', 'original_name', 'imghippo_url', 'created_at'
+                )
             )
         )
         .order_by('-created_at')
     )
 
+    # Filter by booking ID
     if booking_id:
         queryset = queryset.filter(booking_id__icontains=booking_id)
 
+    # Filter by unit ID
+    if unit_id:
+        queryset = queryset.filter(storage_unit_id=unit_id)
+
+    # Filter by user name (case-insensitive)
+    if user_name:
+        queryset = queryset.filter(user_booked__full_name__icontains=user_name)
+    
+    if phone:
+        queryset = queryset.filter(user_booked__phone__icontains=phone)
+    
+    if email:
+        queryset = queryset.filter(user_booked__email__icontains=email)
+
+    # Total stats BEFORE pagination/serialization
+    total_count = queryset.count()
+    total_amount = queryset.aggregate(total=Sum('amount'))['total'] or 0
+    total_amount_paid = queryset.filter(payment_status="paid").aggregate(
+        paid=Sum('amount')
+    )['paid'] or 0
+
+    # Serialize data
     data = []
     for booking in queryset:
         user = booking.user_booked
-        user_docs = user.user_documents.all() if hasattr(user, 'user_documents') else []
+        user_docs = getattr(user, 'user_documents', [])
 
         data.append({
             "id": booking.id,
@@ -848,10 +879,11 @@ def get_all_bookings(request):
             "storage_booked_location": booking.storage_booked_location,
             "storage_unit": booking.storage_unit.title if booking.storage_unit else None,
             "assigned_saathi": getattr(booking.assigned_saathi, "name", None),
-            'luggage_image': booking.storage_image_url if booking.storage_image_url else None,
-            "updated_by": booking.last_updated_by if booking.last_updated_by else None,
-            "amount_updated_by": booking.amount_updated_by if booking.amount_updated_by else None,
+            "luggage_image": booking.storage_image_url,
+            "updated_by": booking.last_updated_by,
+            "amount_updated_by": booking.amount_updated_by,
             "payment_status": booking.payment_status,
+
             "user_booked": {
                 "id": user.id,
                 "full_name": user.full_name,
@@ -868,15 +900,20 @@ def get_all_bookings(request):
                         "original_name": doc.original_name,
                         "imghippo_url": doc.imghippo_url,
                         "created_at": doc.created_at,
-                    } for doc in user_docs
+                    }
+                    for doc in user_docs.all()
                 ]
             }
         })
 
     return Response({
         "success": True,
-        "message": "Luggage List Returned successfully!",
-        "data": data})
+        "message": "Booking list returned successfully!",
+        "total_count": total_count,
+        "total_amount": total_amount,
+        "total_amount_paid": total_amount_paid,
+        "data": data
+    })
 
 @api_view(['GET'])
 @permission_classes([AllowAny])

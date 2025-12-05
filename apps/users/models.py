@@ -103,3 +103,12 @@ class UserDocument(models.Model):
 
     def __str__(self):
         return f"{self.user_id} - {self.original_name or self.imghippo_id}"
+    
+
+class PartnerUnitMapping(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='partner_units')
+    unit = models.CharField(max_length=255, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.full_name} - {self.unit.description}"

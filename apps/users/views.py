@@ -2,7 +2,7 @@ from django.shortcuts import render
 from rest_framework.decorators import api_view, permission_classes 
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from .models import User, UserNotification, UserDeviceToken , UserDocument
+from .models import User, UserNotification, UserDeviceToken , UserDocument,PartnerUnitMapping
 from rest_framework import status
 from .utils import is_valid_email,is_valid_phone,generate_otp,validate_email_or_phone,generate_random_number,get_time_diff
 from utils.send_email import send_otp_email,send_login_otp_email
@@ -635,3 +635,48 @@ def user_document_upload(request):
     except Exception as e:
         # log exception in real app
         return Response({"success": "Fail", "message": str(e)}, status=500)
+    
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_partner_units(request):
+    user_id = request.query_params.get("user_id")
+
+    if not user_id:
+        return Response(
+            {"success": "Fail", "message": "User ID is required."},
+            status=400
+        )
+
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response(
+            {"success": "Fail", "message": "User not found."},
+            status=404
+        )
+
+    if user.role != 'partner':
+        return Response(
+            {"success": "Fail", "message": "User is not a partner."},
+            status=403
+        )
+
+    # Fetch all unit mappings for the partner
+    mappings = PartnerUnitMapping.objects.select_related("unit").filter(user=user)
+
+    unit_list = [
+        {
+            "unit_id": mapping.unit.id,
+            "unit_name": mapping.unit.name
+        }
+        for mapping in mappings
+    ]
+
+    return Response(
+        {
+            "success": "Success",
+            "message": "Partner unit list fetched successfully.",
+            "data": unit_list
+        },
+        status=200
+    )
