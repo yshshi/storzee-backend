@@ -32,7 +32,8 @@ from apps.users.models import UserDeviceToken,UserNotification
 import asyncio
 from django.core.cache import cache
 from utils.send_email import send_return_confirmation_email
-from django.db.models import Sum
+from django.db.models import Sum , FloatField
+from django.db.models.functions import Cast
 
 MAX_BOOKING_TIME = os.getenv('MAX_BOOKING_TIME')
 # Create your views here.
@@ -816,8 +817,8 @@ def update_paymentStatus(request):
 @permission_classes([AllowAny])
 def get_all_bookings(request):
     booking_id = request.GET.get('booking_id')
-    unit_id = request.GET.get('unit_id')          # NEW
-    user_name = request.GET.get('user_name')      # NEW
+    unit_id = request.GET.get('unit_id')
+    user_name = request.GET.get('user_name')
     phone = request.GET.get('phone')
     email = request.GET.get('email')
 
@@ -834,32 +835,37 @@ def get_all_bookings(request):
                 )
             )
         )
+        .annotate(
+            amount_float=Cast('amount', FloatField())   # <<< FIX applied here
+        )
         .order_by('-created_at')
     )
 
-    # Filter by booking ID
+    # Filters
     if booking_id:
         queryset = queryset.filter(booking_id__icontains=booking_id)
 
-    # Filter by unit ID
     if unit_id:
         queryset = queryset.filter(storage_unit_id=unit_id)
 
-    # Filter by user name (case-insensitive)
     if user_name:
         queryset = queryset.filter(user_booked__full_name__icontains=user_name)
-    
+
     if phone:
         queryset = queryset.filter(user_booked__phone__icontains=phone)
-    
+
     if email:
         queryset = queryset.filter(user_booked__email__icontains=email)
 
-    # Total stats BEFORE pagination/serialization
+    # Aggregations (safe)
     total_count = queryset.count()
-    total_amount = queryset.aggregate(total=Sum('amount'))['total'] or 0
+
+    total_amount = queryset.aggregate(
+        total=Sum('amount_float')
+    )['total'] or 0
+
     total_amount_paid = queryset.filter(payment_status="paid").aggregate(
-        paid=Sum('amount')
+        paid=Sum('amount_float')
     )['paid'] or 0
 
     # Serialize data
