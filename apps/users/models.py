@@ -7,6 +7,7 @@ USER_ROLES = (
     ('shathi', 'Shathi'),
     ('locker_owner', 'Locker Owner'),
     ('admin', 'Admin'),
+    ('partner', 'Partner'),
 )
 
 class UserManager(BaseUserManager):
