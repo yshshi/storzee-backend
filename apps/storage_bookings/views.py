@@ -31,6 +31,7 @@ from utils.trigger_notiifcation import send_ayncpush_notification
 from apps.users.models import UserDeviceToken,UserNotification
 import asyncio
 from django.core.cache import cache
+from utils.send_email import send_return_confirmation_email
 
 MAX_BOOKING_TIME = os.getenv('MAX_BOOKING_TIME')
 # Create your views here.
@@ -692,6 +693,7 @@ def change_status(request):
             title = '🎉 Booking Completed Successfully'
             type = 'Booking'
             body = f"⭐ Great job {storage_instance.user_booked.full_name}! Your booking is fully completed. We’d love if you could share your feedback!"
+            send_return_confirmation_email(storage_instance.user_booked.email,storage_instance.user_booked.full_name,storage_instance.booking_id,storage_instance.user_booked.phone,storage_instance.amount)
         elif status == 'luggage_Stored':
             booking_history.luggage_stored = True
             booking_history.luggage_stored_at = timezone.now()
