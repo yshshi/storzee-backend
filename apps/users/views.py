@@ -19,6 +19,7 @@ from rest_framework import status
 import boto3
 from django.core.cache import cache
 from apps.wallet.models import UserWallet,UserWalletTransaction
+from apps.storage_units.models import StorageUnit
 
 # IMGHIPPO_API_KEY = os.getenv('IMGHIPPO_API_KEY')
 # IMGHIPPO_API_URL = os.getenv('IMGHIPPO_API_URL')
@@ -642,41 +643,34 @@ def get_partner_units(request):
     user_id = request.query_params.get("user_id")
 
     if not user_id:
-        return Response(
-            {"success": "Fail", "message": "User ID is required."},
-            status=400
-        )
+        return Response({"success": "Fail", "message": "User ID is required."}, status=400)
 
     try:
         user = User.objects.get(id=user_id)
     except User.DoesNotExist:
-        return Response(
-            {"success": "Fail", "message": "User not found."},
-            status=404
-        )
+        return Response({"success": "Fail", "message": "User not found."}, status=404)
 
     if user.role != 'partner':
-        return Response(
-            {"success": "Fail", "message": "User is not a partner."},
-            status=403
-        )
+        return Response({"success": "Fail", "message": "User is not a partner."}, status=403)
 
-    # Fetch all unit mappings for the partner
-    mappings = PartnerUnitMapping.objects.select_related("unit").filter(user=user)
+    # Fetch mapped unit IDs
+    mapped_units = PartnerUnitMapping.objects.filter(user=user).values_list("unit_id", flat=True)
 
+    # Fetch actual StorageUnit objects
+    units = StorageUnit.objects.filter(id__in=mapped_units)
+
+    # Prepare response
     unit_list = [
         {
-            "unit_id": mapping.unit.id,
-            "unit_name": mapping.unit.name
+            "id": unit.id,
+            "name": unit.description
         }
-        for mapping in mappings
+        for unit in units
     ]
 
-    return Response(
-        {
-            "success": "Success",
-            "message": "Partner unit list fetched successfully.",
-            "data": unit_list
-        },
-        status=200
-    )
+    return Response({
+        "success": "Success",
+        "message": "Units fetched successfully.",
+        "units": unit_list
+    })
+
