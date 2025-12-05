@@ -663,7 +663,7 @@ def get_partner_units(request):
     unit_list = [
         {
             "id": unit.id,
-            "name": unit.description
+            "name": unit.title
         }
         for unit in units
     ]
