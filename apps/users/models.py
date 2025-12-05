@@ -108,7 +108,7 @@ class UserDocument(models.Model):
 
 class PartnerUnitMapping(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='partner_units')
-    unit = models.CharField(max_length=255, blank=True, null=True)
+    unit = models.ForeignKey("storage_units.StorageUnit", on_delete=models.CASCADE, related_name="partner_mappings")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
