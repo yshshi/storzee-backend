@@ -263,11 +263,22 @@ def verify_otp(request):
         
     user.save()
 
+    data = {
+        "id": user.id,
+        "full_name": user.full_name,
+        "city_name": user.city_name,
+        "email": user.email,
+        "phone": user.phone,
+        "role": user.role,
+        "profile_picture": user.profile_picture,
+    }
+
     return Response({
         "success": "Success",
         "message": "OTP verified successfully!",
         "user_id": user.id,
-        "user_document_uploaded": user_document_uploaded
+        "user_document_uploaded": user_document_uploaded,
+        "data": data
     }, status=200)
 
 
@@ -483,6 +494,7 @@ def user_details(request):
         "city_name": user.city_name,
         "email": user.email,
         "phone": user.phone,
+        "role": user.role,
         "profile_picture": user.profile_picture,
         "documents": documents_list,
         "longitude": user.longitude,
